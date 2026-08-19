@@ -1,0 +1,46 @@
+// ---------------------------------------------------------------------
+// SIZE-OPTIMIZED release config.
+// After running `flutter create .` (see README.md), open the generated
+// android/app/build.gradle (or build.gradle.kts) and merge these
+// settings into it. Do NOT overwrite the whole file — just merge the
+// pieces marked below into the existing `android { ... }` block.
+// ---------------------------------------------------------------------
+
+android {
+    defaultConfig {
+        applicationId "com.example.facility_app"
+        minSdkVersion 21          // drop pre-Lollipop, saves compat resources
+        targetSdkVersion flutter.targetSdkVersion
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
+    }
+
+    buildTypes {
+        release {
+            // --- The two settings that matter most for size ---
+            minifyEnabled true          // R8 strips unused Java/Kotlin code
+            shrinkResources true        // removes unused drawables/strings/etc.
+
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'),
+                          'proguard-rules.pro'
+
+            // Use your own signing config for a real release build.
+            // Left as debug signing here only so `flutter build apk --release`
+            // works out of the box before you set up a keystore.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    // Ensures each ABI split only contains its own native libraries
+    // instead of bundling arm/x86 code for every device (this is also
+    // triggered from the command line with --split-per-abi, but
+    // declaring it here keeps `flutter build apk` and `bundle` consistent).
+    splits {
+        abi {
+            enable true
+            reset()
+            include "armeabi-v7a", "arm64-v8a", "x86_64"
+            universalApk false   // false = no fat "contains everything" APK
+        }
+    }
+}

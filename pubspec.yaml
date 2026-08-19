@@ -1,0 +1,32 @@
+name: facility_app
+description: >
+  Native mobile mirror of the Facility Management web dashboard.
+  Uses static mock data now; structured so REST API integration
+  (via http or dio) can be dropped in later with minimal changes.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.6
+
+  # State management (lightweight, ChangeNotifier-based)
+  provider: ^6.1.2
+
+  # NOTE (future API integration):
+  # Uncomment these when wiring up the real backend.
+  # http: ^1.2.1
+  # dio: ^5.4.3
+  # flutter_secure_storage: ^9.0.0   # for storing auth tokens
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true

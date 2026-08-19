@@ -1,0 +1,41 @@
+name: Build Small Release APK
+
+# Trigger manually from the Actions tab, or on every push to main.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # --split-per-abi  -> one small APK per CPU architecture instead of
+      #                     one large "fat" APK containing all of them.
+      # --obfuscate + --split-debug-info -> smaller, obfuscated Dart code.
+      # --tree-shake-icons is on by default in release mode and strips
+      #                     unused glyphs from the Material icon font.
+      - name: Build release APKs (split per ABI, obfuscated)
+        run: |
+          flutter build apk --release \
+            --split-per-abi \
+            --obfuscate \
+            --split-debug-info=build/debug-info
+
+      - name: Report APK sizes
+        run: ls -lh build/app/outputs/flutter-apk/*.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-apks
+          path: build/app/outputs/flutter-apk/*.apk

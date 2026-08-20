@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Facility App (Flutter)
 
 Native mirror of the web dashboard, with mock data now and a clean path
@@ -90,3 +91,6 @@ universal APK.
   with a real release keystore — the debug signing config is only there
   so the build works before you set one up.
 - Replace `applicationId "com.example.facility_app"` with your own.
+=======
+# diwan_app
+>>>>>>> 3ac57030da1f9fab6162b9020366e4740221e489

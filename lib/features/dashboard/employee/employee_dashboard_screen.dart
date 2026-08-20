@@ -150,7 +150,7 @@ class _NewRequestFormState extends State<_NewRequestForm> {
             const Text('Category', style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             DropdownButtonFormField<String>(
-              initialValue: _category,
+              value: _category,
               items: _categories
                   .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                   .toList(),

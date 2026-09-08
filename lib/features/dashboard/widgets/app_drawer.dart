@@ -30,20 +30,20 @@ class AppDrawer extends StatelessWidget {
     switch (role) {
       case UserRole.admin:
         return const [
-          _DrawerItem(Icons.dashboard_rounded, 'Overview'),
-          _DrawerItem(Icons.people_alt_rounded, 'User Management'),
-          _DrawerItem(Icons.settings_rounded, 'System Settings'),
+          _DrawerItem(Icons.dashboard_rounded, 'نظرة عامة'),
+          _DrawerItem(Icons.people_alt_rounded, 'إدارة المستخدمين'),
+          _DrawerItem(Icons.settings_rounded, 'إعدادات النظام'),
         ];
       case UserRole.technician:
         return const [
-          _DrawerItem(Icons.build_rounded, 'My Tasks'),
-          _DrawerItem(Icons.assignment_rounded, 'Work Orders'),
+          _DrawerItem(Icons.menu_book_rounded, 'الكتب الصادرة والواردة'),
+          _DrawerItem(Icons.assignment_rounded, 'سجل الكتب'),
         ];
       case UserRole.employee:
         return const [
-          _DrawerItem(Icons.add_circle_rounded, 'New Request'),
-          _DrawerItem(Icons.person_rounded, 'My Profile'),
-          _DrawerItem(Icons.timeline_rounded, 'Status Tracker'),
+          _DrawerItem(Icons.add_circle_rounded, 'طلب جديد'),
+          _DrawerItem(Icons.person_rounded, 'الملف الشخصي'),
+          _DrawerItem(Icons.timeline_rounded, 'متابعة الحالة'),
         ];
     }
   }
@@ -99,14 +99,16 @@ class AppDrawer extends StatelessWidget {
                     title: Text(
                       item.label,
                       style: TextStyle(
-                        color:
-                            selected ? AppColors.primary : AppColors.textPrimary,
+                        color: selected
+                            ? AppColors.primary
+                            : AppColors.textPrimary,
                         fontWeight:
                             selected ? FontWeight.w700 : FontWeight.w500,
                       ),
                     ),
                     selected: selected,
-                    selectedTileColor: AppColors.primary.withValues(alpha: 0.08),
+                    selectedTileColor:
+                        AppColors.primary.withValues(alpha: 0.08),
                     onTap: () {
                       Navigator.pop(context); // close drawer
                       onSelect(index);
@@ -117,11 +119,12 @@ class AppDrawer extends StatelessWidget {
             ),
             const Divider(height: 1),
             ListTile(
-              leading: const Icon(Icons.logout_rounded, color: AppColors.danger),
-              title: const Text('Log out',
-                  style: TextStyle(color: AppColors.danger)),
+              leading: const Icon(Icons.logout_rounded,
+                  color: AppColors.statusBroken),
+              title: const Text('تسجيل الخروج',
+                  style: TextStyle(color: AppColors.statusBroken)),
               onTap: () async {
-                await context.read<AuthController>().logout();
+                context.read<AuthController>().logout();
                 if (context.mounted) {
                   Navigator.of(context)
                       .pushNamedAndRemoveUntil('/login', (_) => false);

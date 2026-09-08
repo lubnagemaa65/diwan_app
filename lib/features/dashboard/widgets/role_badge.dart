@@ -12,11 +12,11 @@ class RoleBadge extends StatelessWidget {
   Color get _color {
     switch (role) {
       case UserRole.admin:
-        return AppColors.adminBadge;
+        return AppColors.statusActive;
       case UserRole.technician:
-        return AppColors.technicianBadge;
+        return AppColors.statusInProgress;
       case UserRole.employee:
-        return AppColors.employeeBadge;
+        return AppColors.statusBroken;
     }
   }
 
@@ -30,7 +30,7 @@ class RoleBadge extends StatelessWidget {
         border: Border.all(color: _color.withValues(alpha: 0.4)),
       ),
       child: Text(
-        role.shortLabel,
+        role.name,
         style: TextStyle(
           color: _color,
           fontSize: 11,

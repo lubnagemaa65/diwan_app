@@ -1,20 +1,82 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/mock/mock_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/models/user_model.dart';
 import '../widgets/app_drawer.dart';
 import '../widgets/custom_app_bar.dart';
 
-/// Admin dashboard: overview metrics, user management list, and system
-/// settings links.
+class _AdminMetric {
+  const _AdminMetric({
+    required this.label,
+    required this.value,
+    required this.trend,
+  });
+
+  final String label;
+  final String value;
+  final String trend;
+}
+
+class _ManagedUserSummary {
+  const _ManagedUserSummary({
+    required this.name,
+    required this.email,
+    required this.role,
+    required this.active,
+  });
+
+  final String name;
+  final String email;
+  final String role;
+  final bool active;
+}
+
+const List<_AdminMetric> _adminMetrics = [
+  _AdminMetric(label: 'إجمالي المستخدمين', value: '1,284', trend: '+12.4%'),
+  _AdminMetric(label: 'الطلبات النشطة', value: '86', trend: '+8.1%'),
+  _AdminMetric(label: 'المخزون', value: '94%', trend: '-2.3%'),
+  _AdminMetric(label: 'المراجعات', value: '312', trend: '+15.6%'),
+];
+
+const List<_ManagedUserSummary> _managedUsers = [
+  _ManagedUserSummary(
+    name: 'محمد علي',
+    email: 'm.ali@facility.com',
+    role: 'مدير',
+    active: true,
+  ),
+  _ManagedUserSummary(
+    name: 'سارة محمد',
+    email: 's.mohammed@facility.com',
+    role: 'موظفة',
+    active: true,
+  ),
+  _ManagedUserSummary(
+    name: 'خالد ياسر',
+    email: 'k.yaser@facility.com',
+    role: 'مشرف',
+    active: false,
+  ),
+  _ManagedUserSummary(
+    name: 'أمينة حمد',
+    email: 'a.hamad@facility.com',
+    role: 'مستندات',
+    active: true,
+  ),
+];
+
+const List<String> _systemSettingsLinks = [
+  'إعدادات الحسابات',
+  'إعدادات النظام',
+  'إعدادات الأمان',
+  'سجل المراجعات',
+];
+
+/// لوحة تحكم المدير: مؤشرات عامة، قائمة إدارة المستخدمين، وروابط إعدادات النظام.
 ///
 /// FUTURE API WIRING:
 ///   - Metrics -> GET AppConstants.adminMetricsEndpoint
 ///   - Users   -> GET AppConstants.adminUsersEndpoint
-/// Replace `mockAdminMetrics` / `mockManagedUsers` with data loaded by an
-/// `AdminRepository` (same pattern as `AuthRepository`) inside `initState`
-/// or a `FutureBuilder`.
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -23,9 +85,9 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  int _selectedSection = 0; // 0=Overview, 1=User Management, 2=Settings
+  int _selectedSection = 0; // 0=نظرة عامة، 1=إدارة المستخدمين، 2=الإعدادات
 
-  static const _titles = ['Overview', 'User Management', 'System Settings'];
+  static const _titles = ['نظرة عامة', 'إدارة المستخدمين', 'إعدادات النظام'];
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +95,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       appBar: CustomAppBar(
         title: _titles[_selectedSection],
         role: UserRole.admin,
+        bottom: const TabBar(
+          tabs: [
+            Tab(text: 'One'),
+            Tab(text: 'Two'),
+          ],
+        ),
       ),
       drawer: AppDrawer(
         role: UserRole.admin,
@@ -54,15 +122,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           NavigationDestination(
               icon: Icon(Icons.dashboard_outlined),
               selectedIcon: Icon(Icons.dashboard_rounded),
-              label: 'Overview'),
+              label: 'نظرة عامة'),
           NavigationDestination(
               icon: Icon(Icons.people_outline_rounded),
               selectedIcon: Icon(Icons.people_alt_rounded),
-              label: 'Users'),
+              label: 'المستخدمون'),
           NavigationDestination(
               icon: Icon(Icons.settings_outlined),
               selectedIcon: Icon(Icons.settings_rounded),
-              label: 'Settings'),
+              label: 'الإعدادات'),
         ],
       ),
     );
@@ -77,13 +145,13 @@ class _OverviewSection extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text('Key Metrics',
+        const Text('المؤشرات الرئيسية',
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         const SizedBox(height: 12),
         GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: mockAdminMetrics.length,
+          itemCount: _adminMetrics.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
             mainAxisSpacing: 12,
@@ -91,7 +159,7 @@ class _OverviewSection extends StatelessWidget {
             childAspectRatio: 1.5,
           ),
           itemBuilder: (context, index) {
-            final metric = mockAdminMetrics[index];
+            final metric = _adminMetrics[index];
             final isPositive = metric.trend.startsWith('+');
             return Card(
               child: Padding(
@@ -114,7 +182,7 @@ class _OverviewSection extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                         color: isPositive
                             ? AppColors.success
-                            : AppColors.danger,
+                            : AppColors.statusBroken,
                       ),
                     ),
                   ],
@@ -124,17 +192,18 @@ class _OverviewSection extends StatelessWidget {
           },
         ),
         const SizedBox(height: 24),
-        const Text('Recent Activity',
+        const Text('النشاط الأخير',
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
         const SizedBox(height: 12),
         Card(
           child: Column(
             children: [
-              _activityTile('New work order created', 'WO-1044 · High priority'),
+              _activityTile(
+                  'تم إنشاء كتاب صادر جديد', 'WO-1044 · أولوية عالية'),
               const Divider(height: 1),
-              _activityTile('User account updated', 'Marcus Lee · deactivated'),
+              _activityTile('تم تحديث حساب مستخدم', 'محمد علي · تم إيقافه'),
               const Divider(height: 1),
-              _activityTile('Employee request approved', 'REQ-2198'),
+              _activityTile('تمت الموافقة على طلب موظف', 'REQ-2198'),
             ],
           ),
         ),
@@ -158,10 +227,10 @@ class _UserManagementSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: mockManagedUsers.length,
+      itemCount: _managedUsers.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
-        final user = mockManagedUsers[index];
+        final user = _managedUsers[index];
         return Card(
           child: ListTile(
             leading: CircleAvatar(
@@ -176,13 +245,13 @@ class _UserManagementSection extends StatelessWidget {
                 style: const TextStyle(fontWeight: FontWeight.w700)),
             subtitle: Text('${user.email} · ${user.role}'),
             trailing: Chip(
-              label: Text(user.active ? 'Active' : 'Inactive'),
-              backgroundColor: (user.active
-                      ? AppColors.success
-                      : AppColors.textSecondary)
-                  .withValues(alpha: 0.12),
+              label: Text(user.active ? 'نشط' : 'غير نشط'),
+              backgroundColor:
+                  (user.active ? AppColors.success : AppColors.textSecondary)
+                      .withValues(alpha: 0.12),
               labelStyle: TextStyle(
-                color: user.active ? AppColors.success : AppColors.textSecondary,
+                color:
+                    user.active ? AppColors.success : AppColors.textSecondary,
                 fontWeight: FontWeight.w600,
                 fontSize: 12,
               ),
@@ -206,15 +275,16 @@ class _SystemSettingsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: mockSystemSettingsLinks.length,
+      itemCount: _systemSettingsLinks.length,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
-        final label = mockSystemSettingsLinks[index];
+        final label = _systemSettingsLinks[index];
         return Card(
           child: ListTile(
             leading: const Icon(Icons.tune_rounded, color: AppColors.primary),
-            title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-            trailing: const Icon(Icons.chevron_right_rounded),
+            title: Text(label,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            trailing: const Icon(Icons.chevron_left_rounded),
             onTap: () {
               // FUTURE: route to the relevant settings sub-screen, each
               // backed by its own GET/PUT endpoint.

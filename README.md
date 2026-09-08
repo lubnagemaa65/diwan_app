@@ -1,96 +1,129 @@
-<<<<<<< HEAD
-# Facility App (Flutter)
+# تطبيق إدارة أصول الجامعة (University Assets Management App)
 
-Native mirror of the web dashboard, with mock data now and a clean path
-to a real REST API later. See `lib/features/auth/repository/auth_repository.dart`
-for the exact spots marked for future `http.post`/`http.get` calls.
+تطبيق Flutter كامل لإدارة أصول الجامعة (حواسيب، طابعات) وطلبات الصيانة، مبني ليترابط
+مع باك إند `university-assets-api`، بالاعتماد على الشاشات الفعلية الموجودة في لوحة الإدارة الحالية.
 
-## Demo accounts (mock)
-| Role       | Email                          | Password     |
-|------------|---------------------------------|--------------|
-| Admin      | admintest@local.com             | admintest123 |
-| Technician | technicanusertest@local.com     | tech1234     |
-| Employee   | emptest@local                   | emptest123   |
+## المعمارية
 
-## Project structure
+هيكلة **Feature-first** مبسطة (Clean-ish Architecture):
+
 ```
 lib/
-  core/
-    constants/app_constants.dart   # API base URL + endpoint placeholders
-    theme/app_colors.dart          # palette + ThemeData
-    mock/mock_data.dart            # static data for all 3 dashboards
-  features/
-    auth/
-      models/user_model.dart
-      repository/auth_repository.dart   # mock now, HTTP-ready later
-      controller/auth_controller.dart   # ChangeNotifier state
-      screens/login_screen.dart
-    dashboard/
-      widgets/  custom_app_bar.dart, app_drawer.dart, role_badge.dart
-      admin/admin_dashboard_screen.dart
-      technician/technician_dashboard_screen.dart
-      employee/employee_dashboard_screen.dart
-  main.dart
+├── main.dart                  # نقطة الدخول
+├── app.dart                   # جذر التطبيق: Providers + MaterialApp + الثيم + الترجمة
+├── core/                      # كل ما هو مشترك بين الميزات
+│   ├── constants/              # ثوابت API، الأدوار، الحالات
+│   ├── network/                 # Dio + Interceptors (Auth/Error) + ApiException
+│   ├── storage/                  # Secure Storage (JWT Tokens)
+│   ├── theme/                     # AppTheme / AppColors (Material 3)
+│   ├── localization/               # عربي/إنجليزي + RTL
+│   ├── utils/                        # Validators
+│   └── widgets/                       # عناصر واجهة مشتركة (أزرار، حقول، Status Chip...)
+├── models/                      # نماذج البيانات (User, Computer, Printer, MaintenanceOrder...)
+└── features/
+    ├── auth/                    # تسجيل الدخول + استعادة كلمة المرور
+    ├── dashboard/                 # لوحة التحكم الرئيسية والإحصائيات
+    ├── assets/                      # قائمة/تفاصيل الأصول (حواسيب + طابعات)
+    ├── maintenance/                    # طلبات الصيانة (قائمة/تفاصيل/نموذج جديد)
+    ├── users/                             # إدارة المستخدمين (Admin فقط)
+    └── shared/                              # التنقل الرئيسي + شاشة البداية + الحساب الشخصي
 ```
 
-## ⚠️ About the APK
-This project was generated in a sandbox that has **no Flutter SDK, no
-Android SDK, and no network access** — so an actual `.apk` binary could
-not be compiled here. What's included instead is everything needed to
-produce a small one yourself, two ways:
+كل Feature يتبع نفس التقسيم الداخلي: `data/` (Repository يتحدث مباشرة مع Dio)
+→ `providers/` (ChangeNotifier يدير الحالة) → `views/` (الشاشات فقط، بدون منطق شبكة).
 
-### Option A — Let GitHub build it for you (no local install needed)
-1. Push this folder to a new GitHub repo.
-2. The workflow at `.github/workflows/build-apk.yml` is already wired up.
-   Go to the repo's **Actions** tab → run **"Build Small Release APK"**
-   (or just push to `main`).
-3. Download the `release-apks` artifact when it finishes — you'll get
-   three APKs (`armeabi-v7a`, `arm64-v8a`, `x86_64`), each only
-   containing native code for that architecture instead of one bloated
-   universal APK.
+## إدارة الحالة
 
-### Option B — Build locally (if you have Flutter installed)
+تم استخدام **Provider** (`ChangeNotifier` + `MultiProvider`) لبساطته وسرعة الدمج.
+يمكن استبداله بـ Riverpod لاحقًا بسهولة لأن منطق الأعمال معزول بالكامل داخل الـ Providers/Repositories.
+
+## الشبكة (Dio)
+
+- `DioClient` (Singleton): نسخة Dio واحدة لكل التطبيق.
+- `AuthInterceptor`: يضيف `Authorization: Bearer <token>` تلقائيًا، ويحاول تجديد
+  التوكن عبر Refresh Token عند استلام `401`، ثم يعيد تنفيذ الطلب الأصلي تلقائيًا.
+- `ErrorInterceptor`: يحوّل كل أخطاء Dio إلى `ApiException` برسائل عربية واضحة.
+- `PrettyDioLogger`: لتسهيل تتبع الطلبات أثناء التطوير.
+
+## التخزين الآمن
+
+`flutter_secure_storage` لتخزين:
+- `access_token` / `refresh_token` (JWT)
+- بيانات المستخدم الحالي (لعرضها فورًا عند إعادة فتح التطبيق دون انتظار الشبكة)
+
+## الربط بالـ Backend
+
+عدّل عنوان السيرفر في:
+```dart
+// lib/core/constants/api_constants.dart
+static const String baseUrl = 'http://<IP_OR_DOMAIN>:<PORT>/api';
+```
+أو مرّره وقت التشغيل/البناء:
+```
+flutter run --dart-define=API_BASE_URL=http://192.168.1.66:3000/api
+```
+
+### نقاط النهاية المتوقعة (بناءً على شاشات النظام الحالي)
+
+| الميزة | Endpoint |
+|---|---|
+| تسجيل الدخول | `POST /auth/login` |
+| استعادة كلمة المرور | `POST /auth/forgot-password` |
+| تجديد التوكن | `POST /auth/refresh` |
+| المستخدمون | `GET/POST/PUT/DELETE /users` |
+| الكليات | `GET/POST/PUT/DELETE /colleges` |
+| الموظفون | `GET/POST/PUT/DELETE /employees` |
+| الحواسيب | `GET/POST/PUT/DELETE /computers` |
+| الطابعات | `GET/POST/PUT/DELETE /printers` |
+| طلبات الصيانة | `GET/POST/PUT/DELETE /maintenance-orders` |
+| التقارير | `GET /reports/computers|printers|maintenance-orders` |
+| سجل النشاطات | `GET /activity-logs` |
+
+> ⚠️ عدّل المسارات في `api_constants.dart` إذا اختلفت التسمية الفعلية في `university-assets-api`
+> (مثلًا snake_case بدل camelCase، أو بادئة `/v1`).
+
+## الأدوار والصلاحيات (Role-Based Access)
+
+| الدور | الوصول |
+|---|---|
+| **Admin (مدير)** | كل الشاشات + إدارة المستخدمين |
+| **Employee (موظف)** | لوحة التحكم، الأصول، إنشاء طلبات صيانة |
+| **Technician (فني)** | لوحة التحكم، الأصول، متابعة/تحديث حالة طلبات الصيانة |
+
+يتم تحديد الدور تلقائيًا من استجابة تسجيل الدخول، ويُبنى شريط التنقل السفلي
+(`main_navigation_screen.dart`) ديناميكيًا حسب الدور.
+
+## التشغيل
+
+> **ملاحظة مهمة:** هذا المشروع يحتوي على كود Dart/Flutter فقط (مجلد `lib/`) دون مجلدات
+> المنصات (`android/`, `ios/`, ...) لأنها تُولَّد تلقائيًا. **أول خطوة بعد فك الضغط:**
+
 ```bash
-# 1. Scaffold the native android/ (and ios/) folders, which aren't
-#    included here since they require the Flutter SDK to generate correctly:
-flutter create --platforms=android,ios --org com.yourcompany .
-
-# 2. Merge the size-optimized settings into android/app/build.gradle:
-#    open android_config/app/build.gradle.snippet and merge its
-#    android { ... } contents into the generated file.
-cp android_config/app/proguard-rules.pro android/app/proguard-rules.pro
-
-# 3. Get packages
+cd university_assets_app
+flutter create . --project-name university_assets_app --org com.university.assets
 flutter pub get
-
-# 4. Build the smallest possible release APK
-flutter build apk --release --split-per-abi --obfuscate --split-debug-info=build/debug-info
+flutter run
 ```
-Output lands in `build/app/outputs/flutter-apk/`. Typical result: each
-per-ABI APK is roughly **6–9 MB**, vs ~20 MB+ for an unsplit debug-signed
-universal APK.
 
-### Why each flag matters (size impact, largest first)
-1. **`--split-per-abi`** — biggest win. Ships only the native code for
-   one CPU architecture per APK instead of arm+arm64+x86 bundled together.
-2. **`minifyEnabled true` / `shrinkResources true`** (in the gradle
-   snippet) — R8 strips unused Dart-generated Java/Kotlin glue and
-   unused Android resources.
-3. **`--obfuscate --split-debug-info=...`** — shrinks and obfuscates
-   compiled Dart code; keep the `debug-info` folder privately if you
-   ever need to symbolicate a crash report.
-4. Icon tree-shaking and resource shrinking happen automatically in
-   `--release` mode — no unused Material icon glyphs get bundled.
-5. If you publish to Play Store instead of sideloading, prefer
-   `flutter build appbundle` — Play's dynamic delivery does this
-   splitting (and more, like per-density image splitting) automatically
-   and usually yields an even smaller download for end users.
+الأمر `flutter create .` يضيف مجلدات `android/` و`ios/` (وغيرها) دون المساس بملفات
+`lib/` أو `pubspec.yaml` الموجودة.
 
-### Before shipping
-- Replace `signingConfig signingConfigs.debug` in the gradle snippet
-  with a real release keystore — the debug signing config is only there
-  so the build works before you set one up.
-- Replace `applicationId "com.example.facility_app"` with your own.
-=======
-# diwan_app
->>>>>>> 3ac57030da1f9fab6162b9020366e4740221e489
+
+## ما تم تنفيذه
+
+- [x] هيكلية المجلدات + `pubspec.yaml`
+- [x] Dio + Interceptors (Auth/Error) + Secure Storage
+- [x] AppTheme (Material 3، فاتح/داكن) + ترجمة عربي/إنجليزي (RTL)
+- [x] Auth: تسجيل الدخول + استعادة كلمة المرور
+- [x] Dashboard بإحصائيات وإجراءات سريعة
+- [x] الأصول: قائمة + بحث/فلترة + تفاصيل
+- [x] الصيانة: قائمة + تفاصيل + تحديث الحالة (فني/مدير) + نموذج طلب جديد
+- [x] المستخدمون (Admin): قائمة بالأدوار
+- [x] التنقل الرئيسي حسب الدور + شاشة حساب شخصي (تبديل اللغة + تسجيل الخروج)
+
+## للتوسّع لاحقًا
+
+- شاشات الكليات/الموظفين الكاملة (CRUD) لدور Admin
+- شاشة سجل النشاطات
+- شاشات التقارير مع تصدير PDF/Excel (مطابقة لتقارير النظام الأصلي)
+- الإشعارات الفورية (Push/WebSocket) لطلبات الصيانة الجديدة

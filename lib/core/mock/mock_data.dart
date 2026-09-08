@@ -1,181 +1,353 @@
-/// Static mock data powering the dashboards.
-///
-/// FUTURE: each of these lists should instead be populated by a
-/// `DashboardRepository` (mirroring `AuthRepository`'s pattern) that calls
-/// `http.get(AppConstants.xEndpoint)` and parses the JSON response into
-/// the same model shapes used here.
+// mock.dart
+//
+// Static mock data for development/testing.
+// This file does NOT connect to a real database or API.
+//
+// Mock login accounts:
+//   Admin:      admintest@local.com / 123456
+//   Technician: technicanusertest@local.com / 123456
+//   Employee:   emptest@local.com / 123456
 
 // ---------------------------------------------------------------------
-// Admin dashboard mock data
+// Mock Account
 // ---------------------------------------------------------------------
-class AdminMetric {
-  final String label;
-  final String value;
-  final String trend; // e.g. "+4.2%"
-  const AdminMetric(this.label, this.value, this.trend);
+
+class MockAccount {
+  final String email;
+  final String password;
+  final String name;
+  final String role;
+
+  const MockAccount({
+    required this.email,
+    required this.password,
+    required this.name,
+    required this.role,
+  });
 }
 
-const List<AdminMetric> mockAdminMetrics = [
-  AdminMetric('Total Users', '248', '+3.1%'),
-  AdminMetric('Open Work Orders', '17', '-5.0%'),
-  AdminMetric('Pending Requests', '9', '+1.2%'),
-  AdminMetric('Assets Tracked', '532', '+0.4%'),
+// ---------------------------------------------------------------------
+// Mock Login Accounts
+// ---------------------------------------------------------------------
+
+const List<MockAccount> mockAccounts = [
+  MockAccount(
+    email: 'admin@university.edu',
+    password: '123456',
+    name: '—',
+    role: 'مدير',
+  ),
+  MockAccount(
+    email: 'technicanusertest@local.com',
+    password: '123456',
+    name: 'technicanusertest',
+    role: 'فني',
+  ),
+  MockAccount(
+    email: 'admintest@local.com',
+    password: '123456',
+    name: 'admintest',
+    role: 'مدير',
+  ),
+  MockAccount(
+    email: 'emptest@local.com',
+    password: '123456',
+    name: 'emptest',
+    role: 'موظف',
+  ),
+  MockAccount(
+    email: 'ali@gmail.com',
+    password: '123456',
+    name: 'ali',
+    role: 'موظف',
+  ),
+  MockAccount(
+    email: 'maintenance@gmail.com',
+    password: '123456',
+    name: 'فني صيانة',
+    role: 'فني',
+  ),
 ];
 
-class ManagedUser {
-  final String id;
+// ---------------------------------------------------------------------
+// Mock Authentication
+// ---------------------------------------------------------------------
+
+MockAccount? authenticateMockUser(
+  String email,
+  String password,
+) {
+  final normalizedEmail = email.trim().toLowerCase();
+
+  for (final account in mockAccounts) {
+    if (account.email.toLowerCase() == normalizedEmail &&
+        account.password == password) {
+      return account;
+    }
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------
+// Users
+// ---------------------------------------------------------------------
+
+class UserRow {
   final String name;
   final String email;
-  final String role;
-  final bool active;
-  const ManagedUser(this.id, this.name, this.email, this.role, this.active);
+  final String role; // مدير / فني / موظف
+
+  const UserRow(
+    this.name,
+    this.email,
+    this.role,
+  );
 }
 
-const List<ManagedUser> mockManagedUsers = [
-  ManagedUser('usr_002', 'Maintenance Tech', 'technicanusertest@local.com',
-      'Technician', true),
-  ManagedUser(
-      'usr_003', 'Staff Employee', 'emptest@local', 'Employee', true),
-  ManagedUser('usr_004', 'Dana Reyes', 'dana.reyes@local.com', 'Employee',
-      true),
-  ManagedUser('usr_005', 'Marcus Lee', 'marcus.lee@local.com', 'Technician',
-      false),
-];
-
-const List<String> mockSystemSettingsLinks = [
-  'General Settings',
-  'Roles & Permissions',
-  'Notification Preferences',
-  'Integrations',
-  'Audit Log',
-];
-
-// ---------------------------------------------------------------------
-// Technician dashboard mock data
-// ---------------------------------------------------------------------
-enum TaskStatus { open, inProgress, completed }
-
-extension TaskStatusX on TaskStatus {
-  String get label {
-    switch (this) {
-      case TaskStatus.open:
-        return 'Open';
-      case TaskStatus.inProgress:
-        return 'In Progress';
-      case TaskStatus.completed:
-        return 'Completed';
-    }
-  }
-}
-
-class MaintenanceTask {
-  final String id;
-  final String title;
-  final String location;
-  final String priority; // Low / Medium / High
-  TaskStatus status;
-  MaintenanceTask({
-    required this.id,
-    required this.title,
-    required this.location,
-    required this.priority,
-    required this.status,
-  });
-}
-
-final List<MaintenanceTask> mockMaintenanceTasks = [
-  MaintenanceTask(
-    id: 'WO-1042',
-    title: 'HVAC unit not cooling — 3rd floor',
-    location: 'Building A / Floor 3',
-    priority: 'High',
-    status: TaskStatus.inProgress,
+const List<UserRow> mockUsers = [
+  UserRow(
+    '—',
+    'admin@university.edu',
+    'مدير',
   ),
-  MaintenanceTask(
-    id: 'WO-1043',
-    title: 'Replace flickering hallway lights',
-    location: 'Building B / Floor 1',
-    priority: 'Medium',
-    status: TaskStatus.open,
+  UserRow(
+    'technicanusertest',
+    'technicanusertest@local.com',
+    'فني',
   ),
-  MaintenanceTask(
-    id: 'WO-1039',
-    title: 'Fix leaking faucet — break room',
-    location: 'Building A / Floor 2',
-    priority: 'Low',
-    status: TaskStatus.completed,
+  UserRow(
+    'admintest',
+    'admintest@local.com',
+    'مدير',
   ),
-  MaintenanceTask(
-    id: 'WO-1044',
-    title: 'Elevator inspection overdue',
-    location: 'Building A / Lobby',
-    priority: 'High',
-    status: TaskStatus.open,
+  UserRow(
+    'emptest',
+    'emptest@local.com',
+    'موظف',
+  ),
+  UserRow(
+    'ali',
+    'ali@gmail.com',
+    'موظف',
+  ),
+  UserRow(
+    'فني صيانة',
+    'maintenance@gmail.com',
+    'فني',
   ),
 ];
 
 // ---------------------------------------------------------------------
-// Employee dashboard mock data
+// Colleges
 // ---------------------------------------------------------------------
-enum RequestStatus { submitted, inReview, approved, rejected }
 
-extension RequestStatusX on RequestStatus {
-  String get label {
-    switch (this) {
-      case RequestStatus.submitted:
-        return 'Submitted';
-      case RequestStatus.inReview:
-        return 'In Review';
-      case RequestStatus.approved:
-        return 'Approved';
-      case RequestStatus.rejected:
-        return 'Rejected';
-    }
-  }
+class CollegeRow {
+  final int number;
+  final String name;
+
+  const CollegeRow(
+    this.number,
+    this.name,
+  );
 }
 
-class EmployeeRequest {
-  final String id;
-  final String subject;
-  final String category;
-  final RequestStatus status;
-  final String dateSubmitted;
-  const EmployeeRequest({
-    required this.id,
-    required this.subject,
-    required this.category,
-    required this.status,
-    required this.dateSubmitted,
-  });
-}
-
-const List<EmployeeRequest> mockEmployeeRequests = [
-  EmployeeRequest(
-    id: 'REQ-2201',
-    subject: 'New monitor for workstation',
-    category: 'Equipment',
-    status: RequestStatus.inReview,
-    dateSubmitted: 'Aug 12, 2026',
+const List<CollegeRow> mockColleges = [
+  CollegeRow(
+    1,
+    'مديرية نظم المعلومات',
   ),
-  EmployeeRequest(
-    id: 'REQ-2198',
-    subject: 'Office AC too cold',
-    category: 'Facilities',
-    status: RequestStatus.approved,
-    dateSubmitted: 'Aug 08, 2026',
+  CollegeRow(
+    2,
+    'كلية السياحة',
   ),
-  EmployeeRequest(
-    id: 'REQ-2190',
-    subject: 'Parking access badge replacement',
-    category: 'Access',
-    status: RequestStatus.rejected,
-    dateSubmitted: 'Jul 29, 2026',
+  CollegeRow(
+    3,
+    'كلية الأداب',
   ),
 ];
 
-const Map<String, String> mockEmployeeProfile = {
-  'name': 'Staff Employee',
-  'department': 'Operations',
-  'employeeId': 'EMP-0456',
-  'manager': 'Dana Reyes',
-};
+// ---------------------------------------------------------------------
+// Employees
+// ---------------------------------------------------------------------
+
+class EmployeeRow {
+  final String name;
+  final String college;
+  final String position;
+  final String phone;
+
+  const EmployeeRow(
+    this.name,
+    this.college,
+    this.position,
+    this.phone,
+  );
+}
+
+const List<EmployeeRow> mockEmployees = [
+  EmployeeRow(
+    'محمد سامي',
+    'مديرية نظم المعلومات',
+    'مبرمج',
+    '0999111222',
+  ),
+  EmployeeRow(
+    'لينا خالد',
+    'كلية السياحة',
+    'سكرتيرة',
+    '0999333444',
+  ),
+  EmployeeRow(
+    'يوسف عمر',
+    'كلية الأداب',
+    'محاضر',
+    '0999555666',
+  ),
+];
+
+// ---------------------------------------------------------------------
+// Computers
+// ---------------------------------------------------------------------
+
+class ComputerRow {
+  final String name;
+  final String college;
+  final String status; // يعمل / بحاجة صيانة / خارج الخدمة
+
+  const ComputerRow(
+    this.name,
+    this.college,
+    this.status,
+  );
+}
+
+const List<ComputerRow> mockComputers = [
+  ComputerRow(
+    'PC-101',
+    'مديرية نظم المعلومات',
+    'يعمل',
+  ),
+  ComputerRow(
+    'PC-102',
+    'كلية السياحة',
+    'بحاجة صيانة',
+  ),
+  ComputerRow(
+    'PC-103',
+    'كلية الأداب',
+    'خارج الخدمة',
+  ),
+  ComputerRow(
+    'PC-104',
+    'مديرية نظم المعلومات',
+    'يعمل',
+  ),
+];
+
+// ---------------------------------------------------------------------
+// Printers
+// ---------------------------------------------------------------------
+
+class PrinterRow {
+  final String name;
+  final String college;
+  final String status;
+
+  const PrinterRow(
+    this.name,
+    this.college,
+    this.status,
+  );
+}
+
+const List<PrinterRow> mockPrinters = [
+  PrinterRow(
+    'PR-01',
+    'مديرية نظم المعلومات',
+    'يعمل',
+  ),
+  PrinterRow(
+    'PR-02',
+    'كلية السياحة',
+    'يعمل',
+  ),
+  PrinterRow(
+    'PR-03',
+    'كلية الأداب',
+    'بحاجة صيانة',
+  ),
+];
+
+// ---------------------------------------------------------------------
+// Maintenance Requests
+// ---------------------------------------------------------------------
+
+class MaintenanceRow {
+  final String device;
+  final String description;
+  final String status; // قيد الانتظار / قيد المعالجة / مكتمل
+  final String date;
+
+  const MaintenanceRow(
+    this.device,
+    this.description,
+    this.status,
+    this.date,
+  );
+}
+
+const List<MaintenanceRow> mockMaintenanceRequests = [
+  MaintenanceRow(
+    'PC-102',
+    'الجهاز بطيء جدًا عند الإقلاع',
+    'قيد المعالجة',
+    '2026/08/20',
+  ),
+  MaintenanceRow(
+    'PR-03',
+    'انحشار الورق بشكل متكرر',
+    'قيد الانتظار',
+    '2026/08/25',
+  ),
+  MaintenanceRow(
+    'PC-103',
+    'لا يعمل الجهاز نهائيًا',
+    'مكتمل',
+    '2026/08/10',
+  ),
+];
+
+// ---------------------------------------------------------------------
+// Activity Log
+// ---------------------------------------------------------------------
+
+class ActivityRow {
+  final String time;
+  final String user;
+  final String action;
+
+  const ActivityRow(
+    this.time,
+    this.user,
+    this.action,
+  );
+}
+
+const List<ActivityRow> mockActivityLog = [
+  ActivityRow(
+    '2026/08/31 11:20',
+    'admintest',
+    'أضاف كلية جديدة: كلية الأداب',
+  ),
+  ActivityRow(
+    '2026/08/30 09:05',
+    'فني صيانة',
+    'أنهى طلب صيانة PC-103',
+  ),
+  ActivityRow(
+    '2026/08/29 16:40',
+    'admintest',
+    'حذف مستخدم غير نشط',
+  ),
+];

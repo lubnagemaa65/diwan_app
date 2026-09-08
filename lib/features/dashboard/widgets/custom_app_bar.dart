@@ -15,29 +15,30 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.title,
     required this.role,
+    required TabBar bottom,
   });
 
   Future<void> _confirmLogout(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Log out'),
-        content: const Text('Are you sure you want to log out?'),
+        title: const Text('تسجيل الخروج'),
+        content: const Text('هل أنت متأكد أنك تريد تسجيل الخروج؟'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: const Text('إلغاء'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Log out'),
+            child: const Text('تسجيل الخروج'),
           ),
         ],
       ),
     );
 
     if (confirmed == true && context.mounted) {
-      await context.read<AuthController>().logout();
+      context.read<AuthController>().logout();
       if (context.mounted) {
         Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
       }
@@ -54,7 +55,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           child: Center(child: RoleBadge(role: role)),
         ),
         IconButton(
-          tooltip: 'Log out',
+          tooltip: 'تسجيل الخروج',
           icon: const Icon(Icons.logout_rounded),
           onPressed: () => _confirmLogout(context),
         ),

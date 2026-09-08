@@ -1,82 +1,35 @@
 import 'package:flutter/material.dart';
 
-/// Color palette mirrored from the existing web dashboard's design system.
-/// Adjust these hex values to exactly match your web app's CSS variables.
+/// لوحة ألوان موحّدة للتطبيق (مطابقة لهوية النظام الأصلي - أزرق أساسي)
 class AppColors {
   AppColors._();
 
-  static const Color primary = Color(0xFF2563EB); // web accent blue
-  static const Color primaryDark = Color(0xFF1E40AF);
-  static const Color secondary = Color(0xFF0EA5E9);
+  static const Color primary = Color(0xFF1E56A0);
+  static const Color primaryDark = Color(0xFF163F73);
+  static const Color primaryLight = Color(0xFF4A7FC1);
+
+  static const Color secondary = Color(0xFF00A896);
 
   static const Color background = Color(0xFFF5F7FA);
   static const Color surface = Colors.white;
-  static const Color border = Color(0xFFE2E8F0);
+  static const Color darkBackground = Color(0xFF121417);
+  static const Color darkSurface = Color(0xFF1E2126);
 
-  static const Color textPrimary = Color(0xFF0F172A);
-  static const Color textSecondary = Color(0xFF64748B);
+  // حالات الأصول / الصيانة
+  static const Color statusActive = Color(0xFF2E7D32); // نشط
+  static const Color statusBroken = Color(0xFFC62828); // معطل
+  static const Color statusMaintenance = Color(0xFFF9A825); // تحت الصيانة
+  static const Color statusPending = Color(0xFF757575); // قيد الانتظار
+  static const Color statusInProgress = Color(0xFF1565C0); // قيد التنفيذ
+  static const Color statusCompleted = Color(0xFF2E7D32); // مكتمل
+  static const Color statusCancelled = Color(0xFF9E9E9E); // ملغى
 
-  static const Color success = Color(0xFF16A34A);
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color danger = Color(0xFFDC2626);
-  static const Color info = Color(0xFF0284C7);
+  static const Color error = Color(0xFFD32F2F);
+  static const Color warning = Color(0xFFF9A825);
+  static const Color success = Color(0xFF2E7D32);
+  static const Color info = Color(0xFF0288D1);
 
-  // Role badge colors — matches how the web app color-codes each role.
-  static const Color adminBadge = Color(0xFF7C3AED);
-  static const Color technicianBadge = Color(0xFFF97316);
-  static const Color employeeBadge = Color(0xFF0D9488);
-
-  static ThemeData themeData() {
-    return ThemeData(
-      useMaterial3: true,
-      scaffoldBackgroundColor: background,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: primary,
-        primary: primary,
-        secondary: secondary,
-      ),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: surface,
-        foregroundColor: textPrimary,
-        elevation: 0.5,
-        surfaceTintColor: Colors.transparent,
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(48),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: surface,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: primary, width: 1.5),
-        ),
-      ),
-      cardTheme: CardThemeData(
-        color: surface,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-          side: const BorderSide(color: border),
-        ),
-      ),
-    );
-  }
+  static const Color textPrimary = Color(0xFF1A1C1E);
+  static const Color textSecondary = Color(0xFF6B7280);
+  static const Color divider = Color(0xFFE5E7EB);
 }

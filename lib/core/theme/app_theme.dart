@@ -43,10 +43,11 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         color: AppColors.surface,
-        elevation: 1.5,
-        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 0),
+        elevation: 0,
+        margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 0),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: AppColors.divider, width: 1),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(

@@ -1,107 +1,108 @@
+import 'package:dio/dio.dart';
+import 'package:university_assets_app/core/network/api_exception.dart';
 import 'package:university_assets_app/features/auth/models/user_model.dart';
 
-import '../../../core/mock/mock_data.dart';
-import '../../../models/user_model.dart';
-
-/// Exception used by the mock authentication repository.
+/// استثناء المصادقة (محتفظ به بنفس الاسم القديم لعدم كسر الشاشات التي
+/// تلتقطه عبر `on AuthException catch (e)`).
 class AuthException implements Exception {
   final String message;
-
   AuthException(this.message);
 
   @override
   String toString() => message;
 }
 
-/// Mock authentication repository.
-///
-/// This repository does NOT use Dio or any real API.
-///
-/// Test accounts:
-///
-/// Admin:
-///   admintest@local.com
-///   123456
-///
-/// Technician:
-///   technicanusertest@local.com
-///   123456
-///
-/// Employee:
-///   emptest@local.com
-///   123456
 class AuthRepository {
   Future<AppUser> login({
     required String email,
     required String password,
   }) async {
-    // Simulate a small network delay.
-    await Future.delayed(
-      const Duration(milliseconds: 500),
-    );
-
-    final normalizedEmail = email.trim().toLowerCase();
-
-    // -----------------------------------------------------------------------
-    // Password validation
-    // -----------------------------------------------------------------------
-
-    if (password != '123456') {
-      throw AuthException(
-        'البريد الإلكتروني أو كلمة المرور غير صحيحة',
+    try {
+      final response = await ApiClient.instance.dio.post(
+        '/auth/login',
+        data: {'email': email.trim(), 'password': password},
       );
-    }
 
-    // -----------------------------------------------------------------------
-    // Find user in mock data
-    // -----------------------------------------------------------------------
+      final data = Map<String, dynamic>.from(response.data as Map);
 
-    final matchingUsers = mockUsers.where(
-      (user) => user.email.trim().toLowerCase() == normalizedEmail,
-    );
+      // شكل رد الباك اند: { user: {...}, tokens: { access: {token}, refresh: {token} } }
+      final tokens = data['tokens'];
+      final accessToken =
+          tokens is Map ? (tokens['access']?['token'] ?? '').toString() : '';
+      final userJson = data['user'];
 
-    if (matchingUsers.isEmpty) {
-      throw AuthException(
-        'البريد الإلكتروني أو كلمة المرور غير صحيحة',
+      if (accessToken.isEmpty || userJson is! Map) {
+        throw AuthException('استجابة غير متوقعة من السيرفر.');
+      }
+
+      await ApiClient.instance.saveTokens(Map<String, dynamic>.from(tokens));
+
+      final role = _roleFromApi(userJson['role']?.toString());
+
+      final user = AppUser(
+        name: (userJson['name'] ?? userJson['email'] ?? '—').toString(),
+        email: (userJson['email'] ?? '').toString(),
+        role: role,
+        token: accessToken,
       );
+
+      return user;
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (data is Map && data['message'] != null) {
+        throw AuthException(data['message'].toString());
+      }
+      switch (e.type) {
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.receiveTimeout:
+        case DioExceptionType.connectionError:
+          throw AuthException(
+              'تعذّر الاتصال بالخادم، تحقق من الشبكة وعنوان الخادم');
+        default:
+          throw AuthException('البريد الإلكتروني أو كلمة المرور غير صحيحة');
+      }
     }
+  }
 
-    final user = matchingUsers.first;
+  /// ملاحظة: الباك اند يرسل رابط إعادة التعيين عبر البريد (SMTP)، وهو غير
+  /// مضبوط حالياً في .env، لذلك سيفشل الطلب بخطأ من السيرفر حتى تُضبط SMTP.
+  Future<void> forgotPassword({required String email}) async {
+    try {
+      await ApiClient.instance.dio
+          .post('/auth/forgot-password', data: {'email': email.trim()});
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (data is Map && data['message'] != null) {
+        throw AuthException(data['message'].toString());
+      }
+      throw AuthException('تعذّر إرسال رابط إعادة التعيين، حاول لاحقاً');
+    }
+  }
 
-    // -----------------------------------------------------------------------
-    // Convert Arabic role to UserRole
-    // -----------------------------------------------------------------------
+  Future<void> logout() async {
+    try {
+      final rt = await ApiClient.instance.refreshToken;
+      if (rt != null) {
+        await ApiClient.instance.dio
+            .post('/auth/logout', data: {'refreshToken': rt});
+      }
+    } catch (_) {
+      // نتجاهل أخطاء الشبكة عند تسجيل الخروج
+    }
+    await ApiClient.instance.clearTokens();
+  }
 
-    final UserRole role;
-
-    switch (user.role) {
-      case 'مدير':
-        role = UserRole.admin;
-        break;
-
-      case 'فني':
-        role = UserRole.technician;
-        break;
-
-      case 'موظف':
-        role = UserRole.employee;
-        break;
-
+  UserRole _roleFromApi(String? v) {
+    switch (v?.toUpperCase()) {
+      case 'ADMIN':
+        return UserRole.admin;
+      case 'TECHNICIAN':
+        return UserRole.technician;
+      case 'EMPLOYEE':
+        return UserRole.employee;
       default:
-        throw AuthException(
-          'دور المستخدم غير معروف',
-        );
+        throw AuthException('دور المستخدم غير معروف');
     }
-
-    // -----------------------------------------------------------------------
-    // Return AppUser
-    // -----------------------------------------------------------------------
-
-    return AppUser(
-      name: user.name,
-      email: user.email,
-      role: role,
-      token: 'mock-token',
-    );
   }
 }

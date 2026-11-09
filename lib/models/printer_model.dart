@@ -1,11 +1,14 @@
 import '../core/constants/app_constants.dart';
 
 class PrinterModel {
+  /// معرّف الطابعة في الباك اند هو نفسه الكود (مثال: COL03-PR001) ويُولَّد تلقائياً.
   final String id;
   final String code;
   final String? type; // مثال: ليزر Laser
   final String? collegeId;
   final String? collegeName;
+
+  /// الباك اند لا يربط الطابعة بموظف حالياً، أُبقيا فارغين حتى لا تنكسر الشاشات.
   final String? employeeId;
   final String? employeeName;
   final AssetStatus status;
@@ -23,27 +26,28 @@ class PrinterModel {
 
   factory PrinterModel.fromJson(Map<String, dynamic> json) {
     final college = json['college'];
-    final employee = json['employee'];
+    final id = (json['id'] ?? '').toString();
     return PrinterModel(
-      id: (json['id'] ?? json['_id'] ?? '').toString(),
-      code: (json['code'] ?? json['assetCode'] ?? '').toString(),
+      id: id,
+      code: id,
       type: json['type']?.toString(),
-      collegeId: json['collegeId']?.toString() ?? college?['id']?.toString(),
-      collegeName: college is Map ? college['name']?.toString() : json['collegeName']?.toString(),
-      employeeId: json['employeeId']?.toString() ?? employee?['id']?.toString(),
-      employeeName: employee is Map
-          ? [employee['firstName'], employee['fatherName'], employee['familyName']]
-              .where((e) => e != null && e.toString().isNotEmpty)
-              .join(' ')
-          : json['employeeName']?.toString(),
-      status: AssetStatusX.fromString(json['status']?.toString()),
+      collegeId: json['collegeId']?.toString() ??
+          (college is Map ? college['id']?.toString() : null),
+      collegeName: college is Map ? college['name']?.toString() : null,
+      status: ApiMappers.assetStatusFromApi(json['status']?.toString()),
     );
   }
 
+  /// جسم طلب الإنشاء POST /printers
   Map<String, dynamic> toJson() => {
-        'code': code,
         'type': type,
-        'collegeId': collegeId,
-        'employeeId': employeeId,
+        'status': ApiMappers.assetStatusToApi(status),
+        'collegeId': ApiMappers.toInt(collegeId),
+      };
+
+  /// جسم طلب التعديل PATCH /printers/:id
+  Map<String, dynamic> toUpdateJson() => {
+        'type': type,
+        'status': ApiMappers.assetStatusToApi(status),
       };
 }

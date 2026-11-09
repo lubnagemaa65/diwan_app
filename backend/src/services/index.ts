@@ -1,0 +1,11 @@
+export { default as authService } from './auth.service';
+export { default as userService } from './user.service';
+export { default as tokenService } from './token.service';
+export { default as emailService } from './email.service';
+export { default as collegeService } from './college.service';
+export { default as employeeService } from './employee.service';
+export { default as computerService } from './computer.service';
+export { default as printerService } from './printer.service';
+export { default as maintenanceOrderService } from './maintenanceOrder.service';
+export { default as aiService } from './ai.service';
+export { default as activityLogService } from './activityLog.service';

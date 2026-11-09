@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/mock/mock_data.dart';
 import '../../core/theme/app_colors.dart';
 import 'report_screen.dart';
 
@@ -11,12 +10,19 @@ class ComputersReportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = mockComputers.length;
-    final working = mockComputers.where((c) => c.status == 'يعمل').length;
+    final computers = <Map<String, String>>[
+      {'status': 'يعمل'},
+      {'status': 'يعمل'},
+      {'status': 'بحاجة صيانة'},
+      {'status': 'خارج الخدمة'},
+    ];
+
+    final total = computers.length;
+    final working = computers.where((c) => c['status'] == 'يعمل').length;
     final needsMaint =
-        mockComputers.where((c) => c.status == 'بحاجة صيانة').length;
+        computers.where((c) => c['status'] == 'بحاجة صيانة').length;
     final outOfService =
-        mockComputers.where((c) => c.status == 'خارج الخدمة').length;
+        computers.where((c) => c['status'] == 'خارج الخدمة').length;
 
     return ReportScreen(
       route: '/reports/computers',

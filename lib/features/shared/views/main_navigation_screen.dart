@@ -5,13 +5,9 @@ import '../../assets/views/assets_list_screen.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../dashboard/views/dashboard_screen.dart';
 import '../../maintenance/views/maintenance_list_screen.dart';
-import '../../users/views/users_list_screen.dart';
+import 'admin_management_screen.dart';
 import 'profile_screen.dart';
 
-/// نقطة الدخول الرئيسية بعد تسجيل الدخول.
-/// تبني شريط تنقل سفلي مختلف بحسب دور المستخدم (Role-Based Access):
-/// - Admin: الرئيسية، الأصول، الصيانة، المستخدمون، حسابي
-/// - Employee/Technician: الرئيسية، الأصول، الصيانة، حسابي
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({super.key});
 
@@ -48,10 +44,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       if (isAdmin)
         _NavDestination(
-          icon: Icons.people_outline_rounded,
-          selectedIcon: Icons.people_alt_rounded,
-          label: context.tr('users'),
-          screen: const UsersListScreen(),
+          icon: Icons.admin_panel_settings_outlined,
+          selectedIcon: Icons.admin_panel_settings_rounded,
+          label: 'الإدارة',
+          screen: const AdminManagementScreen(),
         ),
       _NavDestination(
         icon: Icons.person_outline_rounded,
@@ -68,7 +64,18 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
-        children: destinations.map((d) => d.screen).toList(),
+        children: [
+          for (int i = 0; i < destinations.length; i++)
+            // HeroMode يعطّل تسجيل الـ Hero (ومنه الزر العائم الافتراضي)
+            // للشاشات غير الظاهرة حالياً، لأن IndexedStack يُبقيها جميعاً
+            // في الشجرة بنفس الوقت — وهذا هو الحل الموثّق من Flutter
+            // تحديداً لتصادم "multiple heroes share the same tag" في هذه
+            // الحالة، بدل الاضطرار لتعديل كل شاشة على حدة.
+            HeroMode(
+              enabled: i == _currentIndex,
+              child: destinations[i].screen,
+            ),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,

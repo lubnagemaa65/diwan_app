@@ -6,7 +6,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/error_state.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../../../core/constants/app_constants.dart';
-import '../../../models/maintenance_order_model.dart';
+import '../../../models/maintenance_order_model.dart' as m;
 import '../../auth/providers/auth_provider.dart';
 import '../providers/maintenance_provider.dart';
 import 'maintenance_form_screen.dart';
@@ -39,7 +39,8 @@ class _MaintenanceListScreenState extends State<MaintenanceListScreen> {
       floatingActionButton: canCreate
           ? FloatingActionButton.extended(
               onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const MaintenanceFormScreen()),
+                MaterialPageRoute(
+                    builder: (_) => const MaintenanceFormScreen()),
               ),
               icon: const Icon(Icons.add),
               label: Text(context.tr('add')),
@@ -57,7 +58,8 @@ class _MaintenanceListScreenState extends State<MaintenanceListScreen> {
     );
   }
 
-  Widget _buildStatusFilters(BuildContext context, MaintenanceProvider provider) {
+  Widget _buildStatusFilters(
+      BuildContext context, MaintenanceProvider provider) {
     final statuses = <String, String>{
       'all': context.tr('all'),
       'pending': context.tr('pending'),
@@ -80,12 +82,13 @@ class _MaintenanceListScreenState extends State<MaintenanceListScreen> {
                 label: Text(entry.value),
                 selected: selected,
                 onSelected: (_) => provider.setStatusFilter(entry.key),
-                selectedColor: AppColors.primary.withOpacity(0.15),
+                selectedColor: AppColors.primary.withValues(alpha: 0.15),
                 labelStyle: TextStyle(
                   color: selected ? AppColors.primary : AppColors.textSecondary,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.normal,
                 ),
-                side: BorderSide(color: selected ? AppColors.primary : AppColors.divider),
+                side: BorderSide(
+                    color: selected ? AppColors.primary : AppColors.divider),
               ),
             );
           }).toList(),
@@ -107,12 +110,14 @@ class _MaintenanceListScreenState extends State<MaintenanceListScreen> {
       case LoadStatus.loaded:
         final orders = provider.filteredOrders;
         if (orders.isEmpty) {
-          return EmptyState(message: context.tr('no_data'), icon: Icons.build_outlined);
+          return EmptyState(
+              message: context.tr('no_data'), icon: Icons.build_outlined);
         }
         return ListView.builder(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           itemCount: orders.length,
-          itemBuilder: (context, index) => _MaintenanceCard(order: orders[index]),
+          itemBuilder: (context, index) =>
+              _MaintenanceCard(order: orders[index]),
         );
     }
   }
@@ -120,18 +125,65 @@ class _MaintenanceListScreenState extends State<MaintenanceListScreen> {
 
 class _MaintenanceCard extends StatelessWidget {
   const _MaintenanceCard({required this.order});
-  final MaintenanceOrderModel order;
+  final m.MaintenanceOrderModel order;
+
+  MaintenanceStatus _toAppStatus(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'completed':
+        return MaintenanceStatus.completed;
+      case 'in_progress':
+        return MaintenanceStatus.inProgress;
+      case 'cancelled':
+        return MaintenanceStatus.cancelled;
+      default:
+        return MaintenanceStatus.pending;
+    }
+  }
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذف طلب الصيانة'),
+        content: Text('هل أنت متأكد من حذف الطلب رقم ${order.id}؟'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('حذف', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      final provider = context.read<MaintenanceProvider>();
+      final success = await provider.deleteOrder(order.id);
+      if (!success && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(provider.errorMessage),
+              backgroundColor: AppColors.error),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final canManage = auth.isAdmin || auth.isTechnician;
+
     return Card(
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(10),
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => MaintenanceDetailsScreen(order: order)),
+          MaterialPageRoute(
+              builder: (_) => MaintenanceDetailsScreen(order: order)),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -140,9 +192,12 @@ class _MaintenanceCard extends StatelessWidget {
                 children: [
                   Text(
                     order.deviceCode ?? '#${order.id}',
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 15),
                   ),
-                  StatusChip.maintenance(status: order.status),
+                  StatusChip.maintenance(
+                      status:
+                          MaintenanceStatus.values.byName(order.status.name)),
                 ],
               ),
               const SizedBox(height: 8),
@@ -150,22 +205,55 @@ class _MaintenanceCard extends StatelessWidget {
                 order.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 13.5),
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 13.5),
               ),
               const SizedBox(height: 10),
               Row(
                 children: [
-                  const Icon(Icons.category_outlined, size: 15, color: AppColors.textSecondary),
+                  const Icon(Icons.category_outlined,
+                      size: 15, color: AppColors.textSecondary),
                   const SizedBox(width: 4),
-                  Text(order.problemType, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                  Text(order.problemType,
+                      style: const TextStyle(
+                          fontSize: 12.5, color: AppColors.textSecondary)),
                   const SizedBox(width: 14),
                   if (order.technicianName != null) ...[
-                    const Icon(Icons.engineering_outlined, size: 15, color: AppColors.textSecondary),
+                    const Icon(Icons.engineering_outlined,
+                        size: 15, color: AppColors.textSecondary),
                     const SizedBox(width: 4),
-                    Text(order.technicianName!, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+                    Text(order.technicianName!,
+                        style: const TextStyle(
+                            fontSize: 12.5, color: AppColors.textSecondary)),
                   ],
                 ],
               ),
+              if (canManage) ...[
+                const Divider(height: 18),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined,
+                          size: 19, color: AppColors.actionEdit),
+                      tooltip: 'تعديل الحالة',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) =>
+                                MaintenanceDetailsScreen(order: order)),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline,
+                          size: 19, color: AppColors.error),
+                      tooltip: 'حذف',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _confirmDelete(context),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),

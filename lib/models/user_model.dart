@@ -18,20 +18,22 @@ class UserModel {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: (json['id'] ?? json['_id'] ?? '').toString(),
+      // الاسم اختياري في الباك اند (name?)
       name: (json['name'] ?? json['fullName'] ?? '—').toString(),
       email: (json['email'] ?? '').toString(),
-      role: UserRoleX.fromString(json['role']?.toString()),
+      role: ApiMappers.roleFromApi(json['role']?.toString()),
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,
     );
   }
 
+  /// للتخزين المحلي فقط (الجلسة). أما الإنشاء والتعديل فتبنيهما UserService.
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
         'email': email,
-        'role': role.apiValue,
+        'role': ApiMappers.roleToApi(role),
       };
 
   UserModel copyWith({String? name, String? email, UserRole? role}) {

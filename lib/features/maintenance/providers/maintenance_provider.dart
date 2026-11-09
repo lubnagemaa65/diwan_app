@@ -1,16 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../core/network/api_exception.dart';
-import '../../../models/maintenance_order_model.dart';
-import '../data/maintenance_repository.dart';
-
-enum LoadStatus { initial, loading, loaded, error }
+import 'package:university_assets_app/core/constants/load_status.dart';
+import 'package:university_assets_app/core/network/api_exception.dart';
+import 'package:university_assets_app/core/network/dio_client.dart';
+import 'package:university_assets_app/models/maintenance_order_model.dart';
+export 'package:university_assets_app/core/constants/load_status.dart';
 
 class MaintenanceProvider extends ChangeNotifier {
-  MaintenanceProvider({MaintenanceRepository? repository})
-      : _repository = repository ?? MaintenanceRepository();
-
-  final MaintenanceRepository _repository;
-
   LoadStatus _status = LoadStatus.initial;
   List<MaintenanceOrderModel> _orders = [];
   String _errorMessage = '';
@@ -28,13 +23,14 @@ class MaintenanceProvider extends ChangeNotifier {
     return _orders.where((o) => o.status.name == _statusFilter).toList();
   }
 
-  int get pendingCount => _orders.where((o) => o.status.name == 'pending').length;
+  int get pendingCount =>
+      _orders.where((o) => o.status.name == 'pending').length;
 
   Future<void> loadOrders() async {
     _status = LoadStatus.loading;
     notifyListeners();
     try {
-      _orders = await _repository.fetchOrders();
+      _orders = await MaintenanceOrderService.list();
       _status = LoadStatus.loaded;
     } on ApiException catch (e) {
       _errorMessage = e.message;
@@ -51,6 +47,10 @@ class MaintenanceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// [deviceType]: 'computer' أو 'printer'.
+  /// [problemType]: 'hardware' أو 'software' فقط — هذا كل ما يدعمه الباك اند.
+  /// [requesterId]: معرّف سجل الموظف (Employee.id وليس User.id)، مطلوب فقط
+  /// عند الإنشاء بحساب مدير (للموظف يتجاهله الباك اند ويستخدم سجله تلقائياً).
   Future<bool> submitRequest({
     required String deviceType,
     required String deviceId,
@@ -61,13 +61,17 @@ class MaintenanceProvider extends ChangeNotifier {
     _isSubmitting = true;
     notifyListeners();
     try {
-      await _repository.createOrder({
-        'deviceType': deviceType,
-        'deviceId': deviceId,
-        'problemType': problemType,
-        'description': description,
-        if (requesterId != null) 'requesterId': requesterId,
-      });
+      final order = MaintenanceOrderModel(
+        id: '',
+        deviceType:
+            deviceType == 'printer' ? AssetType.printer : AssetType.computer,
+        deviceId: deviceId,
+        requesterId: requesterId,
+        problemType: problemType == 'software' ? 'برمجيات' : 'عتاد',
+        description: description,
+        status: MaintenanceStatus.pending,
+      );
+      await MaintenanceOrderService.create(order);
       _isSubmitting = false;
       notifyListeners();
       await loadOrders();
@@ -85,15 +89,47 @@ class MaintenanceProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> updateStatus(String id, String status, {String? technicianId}) async {
+  /// [status]: 'pending' / 'in_progress' أو 'inProgress' / 'completed' / 'cancelled'
+  /// (تُقبل الصيغتان). [technicianId] هو معرّف المستخدم الفني (User.id).
+  Future<bool> updateStatus(String id, String status,
+      {String? technicianId}) async {
     try {
-      await _repository.updateOrderStatus(id, status, technicianId: technicianId);
+      await MaintenanceOrderService.updateStatus(id, _parseStatus(status));
+      if (technicianId != null && technicianId.isNotEmpty) {
+        await MaintenanceOrderService.assignTechnician(id, technicianId);
+      }
       await loadOrders();
       return true;
     } on ApiException catch (e) {
       _errorMessage = e.message;
       notifyListeners();
       return false;
+    }
+  }
+
+  Future<bool> deleteOrder(String id) async {
+    try {
+      await MaintenanceOrderService.delete(id);
+      _orders.removeWhere((o) => o.id == id);
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _errorMessage = e.message;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  MaintenanceStatus _parseStatus(String s) {
+    switch (s.replaceAll('_', '').toLowerCase()) {
+      case 'inprogress':
+        return MaintenanceStatus.inProgress;
+      case 'completed':
+        return MaintenanceStatus.completed;
+      case 'cancelled':
+        return MaintenanceStatus.cancelled;
+      default:
+        return MaintenanceStatus.pending;
     }
   }
 }

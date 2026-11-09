@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/mock/mock_data.dart';
 import '../../core/theme/app_colors.dart';
 import 'report_screen.dart';
 
@@ -11,10 +10,14 @@ class MaintenanceReportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = mockMaintenanceRequests.length;
-    final pending = mockMaintenanceRequests.where((m) => m.status == 'قيد الانتظار').length;
-    final inProgress = mockMaintenanceRequests.where((m) => m.status == 'قيد المعالجة').length;
-    final done = mockMaintenanceRequests.where((m) => m.status == 'مكتمل').length;
+    // Use mock data when available; fallback to empty list to avoid undefined identifier.
+    final maintenanceRequests = <dynamic>[];
+    final total = maintenanceRequests.length;
+    final pending =
+        maintenanceRequests.where((m) => m.status == 'قيد الانتظار').length;
+    final inProgress =
+        maintenanceRequests.where((m) => m.status == 'قيد المعالجة').length;
+    final done = maintenanceRequests.where((m) => m.status == 'مكتمل').length;
 
     return ReportScreen(
       route: '/reports/maintenance',

@@ -1,6 +1,6 @@
 const Map<String, String> arStrings = {
   // عام
-  'app_name': 'إدارة أصول الجامعة',
+  'app_name': 'نظام إدارة أجهزة الجامعة',
   'retry': 'إعادة المحاولة',
   'cancel': 'إلغاء',
   'save': 'حفظ',
@@ -23,7 +23,8 @@ const Map<String, String> arStrings = {
   'password': 'كلمة المرور',
   'forgot_password': 'نسيت كلمة المرور؟',
   'forgot_password_title': 'استعادة كلمة المرور',
-  'forgot_password_subtitle': 'أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين',
+  'forgot_password_subtitle':
+      'أدخل بريدك الإلكتروني وسنرسل لك رابط إعادة التعيين',
   'send_reset_link': 'إرسال رابط الاستعادة',
   'back_to_login': 'العودة لتسجيل الدخول',
   'logout': 'تسجيل الخروج',
@@ -35,7 +36,7 @@ const Map<String, String> arStrings = {
 
   // Navigation
   'dashboard': 'الرئيسية',
-  'assets': 'الأصول',
+  'assets': 'الاجهزة',
   'maintenance': 'الصيانة',
   'notifications': 'الإشعارات',
   'profile': 'حسابي',
@@ -50,17 +51,17 @@ const Map<String, String> arStrings = {
   'welcome': 'أهلًا بك',
   'total_computers': 'الحواسيب',
   'total_printers': 'الطابعات',
-  'active_assets': 'أصول نشطة',
+  'active_assets': 'اجهزة نشطة',
   'pending_maintenance': 'صيانة قيد الانتظار',
   'quick_actions': 'إجراءات سريعة',
   'recent_activity': 'أحدث النشاطات',
   'new_maintenance_request': 'طلب صيانة جديد',
 
   // Assets
-  'assets_title': 'الأصول والمعدات',
+  'assets_title': ' تقرير الصيانة',
   'computers': 'الحواسيب',
   'printers': 'الطابعات',
-  'asset_details': 'تفاصيل الأصل',
+  'asset_details': 'تفاصيل الجهاز',
   'asset_code': 'المعرّف',
   'asset_type': 'النوع',
   'college': 'الكلية',
@@ -77,7 +78,7 @@ const Map<String, String> arStrings = {
   'broken': 'معطل',
   'under_maintenance': 'تحت الصيانة',
   'maintenance_history': 'سجل الصيانة',
-  'no_assets_found': 'لا توجد أصول مطابقة',
+  'no_assets_found': 'لا توجد أجهزة مطابقة',
 
   // Maintenance
   'maintenance_requests': 'طلبات الصيانة',

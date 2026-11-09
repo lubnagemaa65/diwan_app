@@ -4,7 +4,8 @@ import '../theme/app_colors.dart';
 
 /// رقاقة حالة موحّدة تُستخدم لعرض حالة الأصل أو طلب الصيانة بلون مناسب
 class StatusChip extends StatelessWidget {
-  const StatusChip.asset({super.key, required AssetStatus status, this.arabic = true})
+  const StatusChip.asset(
+      {super.key, required AssetStatus status, this.arabic = true})
       : _label = null,
         _color = null,
         _assetStatus = status,
@@ -26,9 +27,9 @@ class StatusChip extends StatelessWidget {
   final bool arabic;
 
   Color _resolveColor() {
-    if (_color != null) return _color!;
+    if (_color != null) return _color;
     if (_assetStatus != null) {
-      switch (_assetStatus!) {
+      switch (_assetStatus) {
         case AssetStatus.active:
           return AppColors.statusActive;
         case AssetStatus.broken:
@@ -40,7 +41,7 @@ class StatusChip extends StatelessWidget {
       }
     }
     if (_maintenanceStatus != null) {
-      switch (_maintenanceStatus!) {
+      switch (_maintenanceStatus) {
         case MaintenanceStatus.pending:
           return AppColors.statusPending;
         case MaintenanceStatus.inProgress:
@@ -57,12 +58,24 @@ class StatusChip extends StatelessWidget {
   }
 
   String _resolveLabel() {
-    if (_label != null) return _label!;
+    if (_label != null) return _label;
     if (_assetStatus != null) {
-      return arabic ? _assetStatus!.labelAr() : _assetStatus!.labelEn();
+      return switch (_assetStatus) {
+        AssetStatus.active => arabic ? 'نشط' : 'Active',
+        AssetStatus.broken => arabic ? 'مكسور' : 'Broken',
+        AssetStatus.underMaintenance =>
+          arabic ? 'قيد الصيانة' : 'Under Maintenance',
+        AssetStatus.unknown => arabic ? 'غير معروف' : 'Unknown',
+      };
     }
     if (_maintenanceStatus != null) {
-      return arabic ? _maintenanceStatus!.labelAr() : _maintenanceStatus!.labelEn();
+      return switch (_maintenanceStatus) {
+        MaintenanceStatus.pending => arabic ? 'معلق' : 'Pending',
+        MaintenanceStatus.inProgress => arabic ? 'قيد التنفيذ' : 'In Progress',
+        MaintenanceStatus.completed => arabic ? 'مكتمل' : 'Completed',
+        MaintenanceStatus.cancelled => arabic ? 'ملغي' : 'Cancelled',
+        MaintenanceStatus.unknown => arabic ? 'غير معروف' : 'Unknown',
+      };
     }
     return '';
   }
@@ -73,9 +86,9 @@ class StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.4)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -88,7 +101,8 @@ class StatusChip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             _resolveLabel(),
-            style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12.5),
+            style: TextStyle(
+                color: color, fontWeight: FontWeight.w700, fontSize: 12.5),
           ),
         ],
       ),

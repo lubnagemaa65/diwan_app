@@ -1,0 +1,176 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int      @id @default(autoincrement())
+  email           String   @unique
+  name            String?
+  password        String
+  role            Role     @default(EMPLOYEE)
+  technicianOrders MaintenanceOrder[]
+  activityLogs ActivityLog[]
+  isEmailVerified Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  Token           Token[]
+  employee Employee?
+}
+
+model Token {
+  id          Int       @id @default(autoincrement())
+  token       String
+  type        TokenType
+  expires     DateTime
+  blacklisted Boolean
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id])
+  userId      Int
+}
+
+model College {
+  id        Int      @id @default(autoincrement())
+  name      String
+  employees Employee[]
+  computers Computer[]
+  printers Printer[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Employee {
+  id         Int      @id @default(autoincrement())
+  firstName  String
+  fatherName String
+  lastName   String
+
+  userId     Int      @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  collegeId  Int
+  college    College  @relation(fields: [collegeId], references: [id])
+computers Computer[]
+  maintenanceRequests MaintenanceOrder[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+enum Role {
+  EMPLOYEE
+  TECHNICIAN
+  ADMIN
+}
+
+enum TokenType {
+  ACCESS
+  REFRESH
+  RESET_PASSWORD
+  VERIFY_EMAIL
+}
+
+enum ComputerType {
+  DESKTOP
+  LAPTOP
+}
+
+enum DiskType {
+  SATA
+  IDE
+}
+
+enum GraphicsCardType {
+  INTEGRATED
+  SEPARATE
+}
+
+enum DeviceStatus {
+  ACTIVE
+  DISABLED
+  MAINTENANCE
+}
+
+model Computer {
+  id            String           @id
+  type          ComputerType
+  processor     String
+  motherboard   String
+  hardDiskType  DiskType
+  hardDiskSpace String
+  ramType       String
+  graphicsCard  GraphicsCardType
+  status        DeviceStatus     @default(ACTIVE)
+
+  collegeId     Int
+  college       College          @relation(fields: [collegeId], references: [id])
+
+  employeeId    Int?
+  employee      Employee?        @relation(fields: [employeeId], references: [id])
+
+  maintenanceOrders MaintenanceOrder[]
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+}
+
+model Printer {
+  id        String       @id
+  type      String
+  status    DeviceStatus @default(ACTIVE)
+
+  collegeId Int
+  college   College      @relation(fields: [collegeId], references: [id])
+  maintenanceOrders MaintenanceOrder[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+
+enum MaintenanceType {
+  SOFTWARE
+  HARDWARE
+}
+
+enum MaintenanceOrderStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model MaintenanceOrder {
+  id                 Int                     @id @default(autoincrement())
+  date               DateTime                @default(now())
+  type               MaintenanceType
+  problemDescription String
+  status             MaintenanceOrderStatus  @default(PENDING)
+
+  computerId         String?
+  computer           Computer?               @relation(fields: [computerId], references: [id])
+
+  printerId          String?
+  printer            Printer?                @relation(fields: [printerId], references: [id])
+
+  requestedById      Int
+  requestedBy        Employee                @relation(fields: [requestedById], references: [id])
+
+  technicianId       Int?
+  technician         User?                   @relation(fields: [technicianId], references: [id])
+
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+}
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  createdAt DateTime @default(now())
+}

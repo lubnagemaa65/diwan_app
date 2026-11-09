@@ -1,3 +1,5 @@
+import 'package:university_assets_app/models/maintenance_order_model.dart';
+
 import '../core/constants/app_constants.dart';
 import 'computer_model.dart';
 import 'printer_model.dart';

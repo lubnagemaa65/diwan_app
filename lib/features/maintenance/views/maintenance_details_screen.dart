@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/app_constants.dart' as app_constants;
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/status_chip.dart';
@@ -17,7 +18,8 @@ class MaintenanceDetailsScreen extends StatelessWidget {
     final canManage = auth.isTechnician || auth.isAdmin;
 
     return Scaffold(
-      appBar: AppBar(title: Text('${context.tr('request_number')} ${order.id}')),
+      appBar:
+          AppBar(title: Text('${context.tr('request_number')} ${order.id}')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -34,20 +36,33 @@ class MaintenanceDetailsScreen extends StatelessWidget {
                       children: [
                         Text(
                           order.deviceCode ?? '—',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 17),
                         ),
-                        StatusChip.maintenance(status: order.status),
+                        // order.status من models/maintenance_order_model.dart نوعه enum
+                        // مختلف (بنفس الاسم) عن الذي في app_constants. نطابق بالاسم.
+                        StatusChip.maintenance(
+                            status: app_constants.MaintenanceStatus.values
+                                .firstWhere(
+                          (e) => e.name == _mapStatusByName(order.status),
+                          orElse: () => app_constants.MaintenanceStatus.pending,
+                        )),
                       ],
                     ),
                     const Divider(height: 24),
-                    _row(context, context.tr('problem_type'), order.problemType),
-                    _row(context, context.tr('requester'), order.requesterName ?? '—'),
-                    _row(context, context.tr('technician'), order.technicianName ?? '—'),
+                    _row(
+                        context, context.tr('problem_type'), order.problemType),
+                    _row(context, context.tr('requester'),
+                        order.requesterName ?? '—'),
+                    _row(context, context.tr('technician'),
+                        order.technicianName ?? '—'),
                     if (order.date != null)
-                      _row(context, context.tr('request_date'), _formatDate(order.date!)),
+                      _row(context, context.tr('request_date'),
+                          _formatDate(order.date!)),
                     const SizedBox(height: 8),
                     Text(context.tr('problem_description'),
-                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                        style: const TextStyle(
+                            color: AppColors.textSecondary, fontSize: 13)),
                     const SizedBox(height: 6),
                     Text(order.description),
                   ],
@@ -56,7 +71,8 @@ class MaintenanceDetailsScreen extends StatelessWidget {
             ),
             if (canManage) ...[
               const SizedBox(height: 20),
-              Text(context.tr('status'), style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text(context.tr('status'),
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               _StatusActions(order: order),
             ],
@@ -74,7 +90,9 @@ class MaintenanceDetailsScreen extends StatelessWidget {
         children: [
           Text(label, style: const TextStyle(color: AppColors.textSecondary)),
           Flexible(
-            child: Text(value, textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w600)),
+            child: Text(value,
+                textAlign: TextAlign.end,
+                style: const TextStyle(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -83,6 +101,19 @@ class MaintenanceDetailsScreen extends StatelessWidget {
 
   String _formatDate(DateTime date) =>
       '${date.year}/${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}';
+}
+
+/// يطابق حالة من enum الطلب إلى اسم نصي بسيط (String). بعض الـ enums في
+/// المشروع تختلف بالنوع لكنها تتشارك نفس الأسماء، فـ StatusChip.maintenance
+/// يقدر يستخدم الاسم لتحديد القيمة الصحيحة.
+String _mapStatusByName(dynamic status) {
+  try {
+    final name = (status as dynamic).name;
+    if (name is String && name.isNotEmpty) return name;
+  } catch (_) {}
+  final s = status?.toString() ?? '';
+  final parts = s.split('.');
+  return parts.isNotEmpty ? parts.last : s;
 }
 
 class _StatusActions extends StatefulWidget {
@@ -99,14 +130,21 @@ class _StatusActionsState extends State<_StatusActions> {
   Future<void> _update(String status) async {
     setState(() => _updating = true);
     final provider = context.read<MaintenanceProvider>();
-    final success = await provider.updateStatus(widget.order.id, status);
+    final auth = context.read<AuthProvider>();
+    // AppUser لا يحمل id رقمياً؛ نستخرجه من التوكن (JWT) عبر AuthProvider.
+    final technicianId =
+        auth.isTechnician ? auth.currentUserId?.toString() : null;
+    final success = await provider.updateStatus(widget.order.id, status,
+        technicianId: technicianId);
     if (!mounted) return;
     setState(() => _updating = false);
     if (success) {
       Navigator.of(context).pop();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.errorMessage), backgroundColor: AppColors.error),
+        SnackBar(
+            content: Text(provider.errorMessage),
+            backgroundColor: AppColors.error),
       );
     }
   }
@@ -127,12 +165,14 @@ class _StatusActionsState extends State<_StatusActions> {
         ),
         OutlinedButton.icon(
           onPressed: () => _update('completed'),
-          icon: const Icon(Icons.check_circle_outline, size: 18, color: AppColors.success),
+          icon: const Icon(Icons.check_circle_outline,
+              size: 18, color: AppColors.success),
           label: Text(context.tr('completed')),
         ),
         OutlinedButton.icon(
           onPressed: () => _update('cancelled'),
-          icon: const Icon(Icons.cancel_outlined, size: 18, color: AppColors.error),
+          icon: const Icon(Icons.cancel_outlined,
+              size: 18, color: AppColors.error),
           label: Text(context.tr('cancelled')),
         ),
       ],

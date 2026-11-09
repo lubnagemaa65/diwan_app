@@ -31,17 +31,30 @@ extension ComputerTypeX on ComputerType {
 }
 
 class ComputerModel {
+  /// في الباك اند معرّف الحاسوب هو نفسه الكود (مثال: COL03-PC001) ويُولَّد تلقائياً.
   final String id;
-  final String code; // مثال: COL03-PC001
+  final String code;
   final ComputerType type;
   final String? collegeId;
   final String? collegeName;
   final String? employeeId;
   final String? employeeName;
   final String? processor;
+  final String? motherboard;
+
+  /// SATA أو IDE فقط (hardDiskType)
   final String? diskType;
+
+  /// مثال: 512GB (hardDiskSpace)
   final String? diskSize;
+
+  /// ramType
   final String? ram;
+
+  /// INTEGRATED أو SEPARATE
+  final String? graphicsCard;
+
+  /// غير موجود في الباك اند حالياً، أُبقي فارغاً حتى لا تنكسر الشاشات القديمة.
   final DateTime? purchaseDate;
   final AssetStatus status;
 
@@ -54,9 +67,11 @@ class ComputerModel {
     this.employeeId,
     this.employeeName,
     this.processor,
+    this.motherboard,
     this.diskType,
     this.diskSize,
     this.ram,
+    this.graphicsCard,
     this.purchaseDate,
     required this.status,
   });
@@ -64,40 +79,49 @@ class ComputerModel {
   factory ComputerModel.fromJson(Map<String, dynamic> json) {
     final college = json['college'];
     final employee = json['employee'];
+    final id = (json['id'] ?? '').toString();
     return ComputerModel(
-      id: (json['id'] ?? json['_id'] ?? '').toString(),
-      code: (json['code'] ?? json['assetCode'] ?? '').toString(),
+      id: id,
+      code: id,
       type: ComputerTypeX.fromString(json['type']?.toString()),
-      collegeId: json['collegeId']?.toString() ?? college?['id']?.toString(),
-      collegeName: college is Map ? college['name']?.toString() : json['collegeName']?.toString(),
-      employeeId: json['employeeId']?.toString() ?? employee?['id']?.toString(),
+      collegeId: json['collegeId']?.toString() ??
+          (college is Map ? college['id']?.toString() : null),
+      collegeName: college is Map ? college['name']?.toString() : null,
+      employeeId: json['employeeId']?.toString() ??
+          (employee is Map ? employee['id']?.toString() : null),
       employeeName: employee is Map
-          ? [employee['firstName'], employee['fatherName'], employee['familyName']]
-              .where((e) => e != null && e.toString().isNotEmpty)
-              .join(' ')
-          : json['employeeName']?.toString(),
-      processor: json['processor']?.toString(),
-      diskType: json['diskType']?.toString() ?? json['disk_type']?.toString(),
-      diskSize: json['diskSize']?.toString() ?? json['disk_size']?.toString(),
-      ram: json['ram']?.toString(),
-      purchaseDate: json['purchaseDate'] != null
-          ? DateTime.tryParse(json['purchaseDate'].toString())
+          ? ApiMappers.joinNames([employee['firstName'], employee['lastName']])
           : null,
-      status: AssetStatusX.fromString(json['status']?.toString()),
+      processor: json['processor']?.toString(),
+      motherboard: json['motherboard']?.toString(),
+      diskType: json['hardDiskType']?.toString(),
+      diskSize: json['hardDiskSpace']?.toString(),
+      ram: json['ramType']?.toString(),
+      graphicsCard: json['graphicsCard']?.toString(),
+      status: ApiMappers.assetStatusFromApi(json['status']?.toString()),
     );
   }
 
+  /// جسم طلب الإنشاء POST /computers (الكود يُولَّد في الباك اند فلا يُرسل).
   Map<String, dynamic> toJson() => {
-        'code': code,
-        'type': type == ComputerType.desktop ? 'desktop' : 'laptop',
-        'collegeId': collegeId,
-        'employeeId': employeeId,
+        'type': type == ComputerType.laptop ? 'LAPTOP' : 'DESKTOP',
         'processor': processor,
-        'diskType': diskType,
-        'diskSize': diskSize,
-        'ram': ram,
-        'purchaseDate': purchaseDate?.toIso8601String(),
+        'motherboard': motherboard,
+        'hardDiskType': diskType,
+        'hardDiskSpace': diskSize,
+        'ramType': ram,
+        'graphicsCard': graphicsCard,
+        'status': ApiMappers.assetStatusToApi(status),
+        'collegeId': ApiMappers.toInt(collegeId),
+        'employeeId': ApiMappers.toInt(employeeId),
       };
 
-  String get diskLabel => [diskType, diskSize].where((e) => e != null && e.isNotEmpty).join(' - ');
+  /// جسم طلب التعديل PATCH /computers/:id (الباك اند لا يسمح بتغيير الكلية).
+  Map<String, dynamic> toUpdateJson() {
+    final m = toJson()..remove('collegeId');
+    return m;
+  }
+
+  String get diskLabel =>
+      [diskType, diskSize].where((e) => e != null && e.isNotEmpty).join(' - ');
 }

@@ -67,7 +67,8 @@ class _LoginScreenState extends State<LoginScreen> {
             return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
               child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: constraints.maxHeight - 64),
+                constraints:
+                    BoxConstraints(minHeight: constraints.maxHeight - 64),
                 child: IntrinsicHeight(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -78,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           width: 84,
                           height: 84,
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
+                            color: AppColors.primary.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -131,11 +132,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                 icon: Icon(_obscurePassword
                                     ? Icons.visibility_outlined
                                     : Icons.visibility_off_outlined),
-                                onPressed: () =>
-                                    setState(() => _obscurePassword = !_obscurePassword),
+                                onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
                               ),
-                              validator: (v) =>
-                                  Validators.password(v, message: context.tr('password_required')),
+                              validator: (v) => Validators.password(v,
+                                  message: context.tr('password_required')),
                             ),
                             Align(
                               alignment: Alignment.centerLeft,
@@ -143,7 +144,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 onPressed: () {
                                   Navigator.of(context).push(
                                     MaterialPageRoute(
-                                      builder: (_) => const ForgotPasswordScreen(),
+                                      builder: (_) =>
+                                          const ForgotPasswordScreen(),
                                     ),
                                   );
                                 },

@@ -1,9 +1,29 @@
 import 'package:flutter/material.dart';
 
-import '../../core/mock/mock_data.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/data_list_screen.dart';
 import '../../core/widgets/status_pill.dart';
+
+final List<Map<String, String>> _maintenanceRequests = [
+  {
+    'device': 'AC-01',
+    'description': 'تسريب ماء من الوحدة الداخلية',
+    'status': 'قيد المعالجة',
+    'date': '2025-01-12',
+  },
+  {
+    'device': 'مكيف 2',
+    'description': 'عدم تبريد الهواء بشكل كافٍ',
+    'status': 'مكتمل',
+    'date': '2025-01-09',
+  },
+  {
+    'device': 'إنارة',
+    'description': 'إصلاح كشاف مكسور في الطابق الثاني',
+    'status': 'قيد المعالجة',
+    'date': '2025-01-07',
+  },
+];
 
 Color _statusColor(String status) {
   switch (status) {
@@ -35,12 +55,15 @@ class MaintenanceRequestsScreen extends StatelessWidget {
         ListColumn('التاريخ', flex: 2),
       ],
       rows: [
-        for (final m in mockMaintenanceRequests)
+        for (final request in _maintenanceRequests)
           [
-            Text(m.device),
-            Text(m.description),
-            StatusPill(label: m.status, color: _statusColor(m.status)),
-            Text(m.date),
+            Text(request['device'] ?? ''),
+            Text(request['description'] ?? ''),
+            StatusPill(
+              label: request['status'] ?? '',
+              color: _statusColor(request['status'] ?? ''),
+            ),
+            Text(request['date'] ?? ''),
           ],
       ],
       onEdit: (i) {},

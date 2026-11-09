@@ -1,184 +1,98 @@
-/// أدوار المستخدمين في النظام (Role-Based Access)
-enum UserRole { admin, employee, technician, unknown }
+// Local enums used by the API mappers.
+enum UserRole { admin, technician, employee }
 
-extension UserRoleX on UserRole {
-  /// يحوّل القيمة القادمة من الـ API (عربي أو إنجليزي) إلى Enum
-  static UserRole fromString(String? value) {
-    switch (value?.toLowerCase().trim()) {
-      case 'admin':
-      case 'مدير':
-        return UserRole.admin;
-      case 'employee':
-      case 'موظف':
-        return UserRole.employee;
-      case 'technician':
-      case 'فني':
-        return UserRole.technician;
-      default:
-        return UserRole.unknown;
-    }
-  }
-
-  String get apiValue {
-    switch (this) {
-      case UserRole.admin:
-        return 'admin';
-      case UserRole.employee:
-        return 'employee';
-      case UserRole.technician:
-        return 'technician';
-      case UserRole.unknown:
-        return 'unknown';
-    }
-  }
-
-  String labelAr() {
-    switch (this) {
-      case UserRole.admin:
-        return 'مدير';
-      case UserRole.employee:
-        return 'موظف';
-      case UserRole.technician:
-        return 'فني';
-      case UserRole.unknown:
-        return 'غير معروف';
-    }
-  }
-
-  String labelEn() {
-    switch (this) {
-      case UserRole.admin:
-        return 'Admin';
-      case UserRole.employee:
-        return 'Employee';
-      case UserRole.technician:
-        return 'Technician';
-      case UserRole.unknown:
-        return 'Unknown';
-    }
-  }
-}
-
-/// حالة الأصل (حاسوب / طابعة)
 enum AssetStatus { active, broken, underMaintenance, unknown }
 
-extension AssetStatusX on AssetStatus {
-  static AssetStatus fromString(String? value) {
-    switch (value?.toLowerCase().trim()) {
-      case 'active':
-      case 'نشط':
+enum MaintenanceStatus { pending, inProgress, completed, cancelled, unknown }
+
+/// تحويلات بين قيم الباك اند (ADMIN, IN_PROGRESS, DISABLED ...) وقيم التطبيق.
+class ApiMappers {
+  ApiMappers._();
+
+  // ---------- الأدوار ----------
+  static UserRole roleFromApi(String? v) {
+    switch (v?.toUpperCase()) {
+      case 'ADMIN':
+        return UserRole.admin;
+      case 'TECHNICIAN':
+        return UserRole.technician;
+      default:
+        return UserRole.employee;
+    }
+  }
+
+  static String roleToApi(UserRole r) {
+    if (r == UserRole.admin) return 'ADMIN';
+    if (r == UserRole.technician) return 'TECHNICIAN';
+    return 'EMPLOYEE';
+  }
+
+  // ---------- حالة الجهاز (ACTIVE / DISABLED / MAINTENANCE) ----------
+  static AssetStatus assetStatusFromApi(String? v) {
+    switch (v?.toUpperCase()) {
+      case 'ACTIVE':
         return AssetStatus.active;
-      case 'broken':
-      case 'inactive':
-      case 'معطل':
+      case 'DISABLED':
         return AssetStatus.broken;
-      case 'under_maintenance':
-      case 'in_maintenance':
-      case 'تحت الصيانة':
-      case 'في صيانة':
+      case 'MAINTENANCE':
         return AssetStatus.underMaintenance;
       default:
         return AssetStatus.unknown;
     }
   }
 
-  String labelAr() {
-    switch (this) {
-      case AssetStatus.active:
-        return 'نشط';
-      case AssetStatus.broken:
-        return 'معطل';
-      case AssetStatus.underMaintenance:
-        return 'تحت الصيانة';
-      case AssetStatus.unknown:
-        return 'غير معروف';
-    }
+  static String assetStatusToApi(AssetStatus s) {
+    if (s == AssetStatus.broken) return 'DISABLED';
+    if (s == AssetStatus.underMaintenance) return 'MAINTENANCE';
+    return 'ACTIVE';
   }
 
-  String labelEn() {
-    switch (this) {
-      case AssetStatus.active:
-        return 'Active';
-      case AssetStatus.broken:
-        return 'Broken';
-      case AssetStatus.underMaintenance:
-        return 'Under Maintenance';
-      case AssetStatus.unknown:
-        return 'Unknown';
-    }
-  }
-}
-
-/// نوع الأصل
-enum AssetType { computer, printer }
-
-/// حالة طلب الصيانة
-enum MaintenanceStatus { pending, inProgress, completed, cancelled, unknown }
-
-extension MaintenanceStatusX on MaintenanceStatus {
-  static MaintenanceStatus fromString(String? value) {
-    switch (value?.toLowerCase().trim()) {
-      case 'pending':
-      case 'قيد الانتظار':
+  // ---------- حالة طلب الصيانة ----------
+  static MaintenanceStatus maintenanceStatusFromApi(String? v) {
+    switch (v?.toUpperCase()) {
+      case 'PENDING':
         return MaintenanceStatus.pending;
-      case 'in_progress':
-      case 'قيد التنفيذ':
-      case 'في صيانة':
+      case 'IN_PROGRESS':
         return MaintenanceStatus.inProgress;
-      case 'completed':
-      case 'مكتمل':
+      case 'COMPLETED':
         return MaintenanceStatus.completed;
-      case 'cancelled':
-      case 'ملغى':
-      case 'ملغي':
+      case 'CANCELLED':
         return MaintenanceStatus.cancelled;
       default:
         return MaintenanceStatus.unknown;
     }
   }
 
-  String labelAr() {
-    switch (this) {
-      case MaintenanceStatus.pending:
-        return 'قيد الانتظار';
-      case MaintenanceStatus.inProgress:
-        return 'قيد التنفيذ';
-      case MaintenanceStatus.completed:
-        return 'مكتمل';
-      case MaintenanceStatus.cancelled:
-        return 'ملغى';
-      case MaintenanceStatus.unknown:
-        return 'غير معروف';
+  static String maintenanceStatusToApi(MaintenanceStatus s) {
+    if (s == MaintenanceStatus.inProgress) return 'IN_PROGRESS';
+    if (s == MaintenanceStatus.completed) return 'COMPLETED';
+    if (s == MaintenanceStatus.cancelled) return 'CANCELLED';
+    return 'PENDING';
+  }
+
+  // ---------- نوع المشكلة (HARDWARE / SOFTWARE) ----------
+  static String problemTypeFromApi(String? v) {
+    switch (v?.toUpperCase()) {
+      case 'HARDWARE':
+        return 'عتاد';
+      case 'SOFTWARE':
+        return 'برمجيات';
+      default:
+        return v ?? '';
     }
   }
 
-  String labelEn() {
-    switch (this) {
-      case MaintenanceStatus.pending:
-        return 'Pending';
-      case MaintenanceStatus.inProgress:
-        return 'In Progress';
-      case MaintenanceStatus.completed:
-        return 'Completed';
-      case MaintenanceStatus.cancelled:
-        return 'Cancelled';
-      case MaintenanceStatus.unknown:
-        return 'Unknown';
-    }
+  static String problemTypeToApi(String label) {
+    final l = label.trim().toLowerCase();
+    if (l == 'برمجيات' || l == 'software') return 'SOFTWARE';
+    return 'HARDWARE';
   }
-}
 
-class StorageKeys {
-  StorageKeys._();
-  static const String accessToken = 'access_token';
-  static const String refreshToken = 'refresh_token';
-  static const String userProfile = 'user_profile';
-  static const String appLocale = 'app_locale';
-  static const String appThemeMode = 'app_theme_mode';
-}
+  // ---------- أدوات صغيرة ----------
+  /// معرّفات المستخدمين والكليات والموظفين والطلبات أرقام (int) في الباك اند،
+  /// بينما النماذج في التطبيق تخزّنها كنص.
+  static int? toInt(String? s) => s == null ? null : int.tryParse(s);
 
-class AppConstants {
-  AppConstants._();
-  static const String appNameAr = 'إدارة أصول الجامعة';
-  static const String appNameEn = 'University Assets';
+  static String joinNames(List<dynamic> parts) =>
+      parts.where((e) => e != null && e.toString().isNotEmpty).join(' ');
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/mock/mock_data.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../auth/models/user_model.dart';
 import '../widgets/app_drawer.dart';

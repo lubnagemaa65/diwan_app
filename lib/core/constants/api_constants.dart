@@ -9,7 +9,7 @@ class ApiConstants {
   // مثال محلي: http://192.168.1.66:3000/api
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.1.66:3000/api',
+    defaultValue: 'http://192.168.1.66:3000/v1',
   );
 
   static const Duration connectTimeout = Duration(seconds: 15);

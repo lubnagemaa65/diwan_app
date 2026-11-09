@@ -54,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     const Icon(Icons.devices_other_rounded,
                         color: AppColors.primary, size: 48),
                     const SizedBox(height: 12),
-                    const Text(AppConstants.appNameAr,
+                    const Text('تطبيق المنشآت',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                             fontSize: 20, fontWeight: FontWeight.w700)),

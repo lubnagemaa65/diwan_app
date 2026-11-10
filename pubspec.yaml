@@ -47,6 +47,7 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
   build_runner: ^2.4.11
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
@@ -54,6 +55,13 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#2F80ED"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
 
   # fonts:
   #   - family: Cairo

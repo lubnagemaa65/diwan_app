@@ -52,16 +52,12 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  assets:
-    - assets/images/
-    - assets/icons/
-
 flutter_launcher_icons:
-  android: true
-  ios: false
-  image_path: "assets/icon/app_icon.png"
-  adaptive_icon_background: "#2F80ED"
-  adaptive_icon_foreground: "assets/icon/app_icon.png"
+   android: true
+   ios: false
+   image_path: "assets/icons/app_icon.svg"
+   adaptive_icon_background: "#2F80ED"
+   adaptive_icon_foreground: "assets/icons/app_icon.svg"
 
   # fonts:
   #   - family: Cairo

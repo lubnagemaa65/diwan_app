@@ -34,7 +34,11 @@ class ApiClient {
         final is401 = e.response?.statusCode == 401;
         final isAuthCall = req.path.startsWith('/auth/');
         if (is401 && !isAuthCall && req.extra['retried'] != true) {
-          final ok = await _refresh();
+          // تجديد واحد فقط حتى لو فشلت عدة طلبات بنفس اللحظة: الباك اند
+          // يمسح الـ refresh token بعد أول استخدام، فالتجديد المتكرر
+          // كان يفشل ويمسح الجلسة بالكامل.
+          final ok = await (_refreshing ??=
+              _refresh().whenComplete(() => _refreshing = null));
           if (ok) {
             req.extra['retried'] = true;
             final token = await _storage.read(key: _accessKey);
@@ -44,11 +48,23 @@ class ApiClient {
             } on DioException catch (err) {
               return handler.next(err);
             }
+          } else {
+            _notifyExpired();
           }
         }
         handler.next(e);
       },
     ));
+  }
+
+  /// يُستدعى عند فشل تجديد الجلسة، لإعادة المستخدم لشاشة الدخول.
+  static void Function()? onSessionExpired;
+  static bool _expiredNotified = false;
+
+  static void _notifyExpired() {
+    if (_expiredNotified) return;
+    _expiredNotified = true;
+    onSessionExpired?.call();
   }
 
   static final ApiClient instance = ApiClient._();
@@ -63,17 +79,21 @@ class ApiClient {
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   late final Dio dio;
+  Future<bool>? _refreshing;
 
   // ---------------- التوكنات والجلسة ----------------
 
   /// [tokens] هو الكائن الراجع من الباك اند: {access: {token, expires}, refresh: {token, expires}}
   Future<void> saveTokens(Map<String, dynamic> tokens) async {
+    _expiredNotified = false;
     final access = tokens['access']?['token'];
     final refresh = tokens['refresh']?['token'];
-    if (access != null)
+    if (access != null) {
       await _storage.write(key: _accessKey, value: access.toString());
-    if (refresh != null)
+    }
+    if (refresh != null) {
       await _storage.write(key: _refreshKey, value: refresh.toString());
+    }
   }
 
   Future<String?> get refreshToken => _storage.read(key: _refreshKey);

@@ -18,8 +18,9 @@ enum AuthStatus { unknown, authenticated, unauthenticated }
 /// (الاسم والبريد والدور) لاستعادة الجلسة بعد إعادة فتح التطبيق.
 class AuthProvider extends ChangeNotifier {
   AuthProvider({AuthRepository? repository})
-      : _repository = repository ?? AuthRepository();
-
+      : _repository = repository ?? AuthRepository() {
+    ApiClient.onSessionExpired = handleSessionExpired;
+  }
   final AuthRepository _repository;
 
   AuthStatus _status = AuthStatus.unknown;

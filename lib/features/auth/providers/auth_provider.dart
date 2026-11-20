@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:university_assets_app/core/network/api_exception.dart';
 import 'package:university_assets_app/features/auth/models/user_model.dart';
@@ -17,11 +17,51 @@ enum AuthStatus { unknown, authenticated, unauthenticated }
 /// يُحفظ ويُدار داخلياً عبر ApiClient، وهنا نحفظ فقط بيانات العرض
 /// (الاسم والبريد والدور) لاستعادة الجلسة بعد إعادة فتح التطبيق.
 class AuthProvider extends ChangeNotifier {
-  AuthProvider({AuthRepository? repository})
+  AuthProvider({AuthRepository? repository, this.navigationManaged = false})
       : _repository = repository ?? AuthRepository() {
-    ApiClient.onSessionExpired = handleSessionExpired;
+    ApiClient.onSessionExpired = _onSessionExpired;
   }
   final AuthRepository _repository;
+  final bool navigationManaged;
+  Future<void>? _operations;
+  int _generation = 0;
+  bool _disposed = false;
+
+  // Session mutations must finish in order: in particular, a late login must
+  // not write tokens after the subsequent logout has completed.
+  Future<T> _enqueue<T>(Future<T> Function() operation) {
+    final previous = _operations;
+    final result = previous == null
+        ? Future<T>.sync(operation)
+        : previous.then((_) => operation());
+    late final Future<void> finished;
+    finished = result.then<void>((_) {}, onError: (Object _, StackTrace __) {});
+    _operations = finished;
+    unawaited(finished.whenComplete(() {
+      if (identical(_operations, finished)) _operations = null;
+    }));
+    return result;
+  }
+
+  bool _isCurrent(int generation) => !_disposed && generation == _generation;
+
+  void _notify() {
+    if (!_disposed) notifyListeners();
+  }
+
+  void _onSessionExpired() {
+    unawaited(handleSessionExpired());
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _generation++;
+    if (ApiClient.onSessionExpired == _onSessionExpired) {
+      ApiClient.onSessionExpired = null;
+    }
+    super.dispose();
+  }
 
   AuthStatus _status = AuthStatus.unknown;
   AppUser? _currentUser;
@@ -64,34 +104,51 @@ class AuthProvider extends ChangeNotifier {
   /// يُستدعى عند إقلاع التطبيق للتحقق من وجود جلسة محفوظة.
   /// التحقق الفعلي من صلاحية التوكن يتم عبر ApiClient (مصدر الحقيقة
   /// للتوكن)، وبيانات العرض تُستعاد من SecureStorageService.
-  Future<void> restoreSession() async {
-    final hasToken = await ApiClient.instance.hasToken();
-    if (!hasToken) {
-      _status = AuthStatus.unauthenticated;
-      notifyListeners();
-      return;
-    }
-
-    final profileJson = await SecureStorageService.instance.getUserProfile();
-    if (profileJson == null) {
-      _status = AuthStatus.unauthenticated;
-      notifyListeners();
-      return;
-    }
-
-    try {
-      final map = jsonDecode(profileJson) as Map<String, dynamic>;
-      _currentUser = AppUser(
-        name: (map['name'] ?? '').toString(),
-        email: (map['email'] ?? '').toString(),
-        role: UserRole.values.byName((map['role'] ?? 'employee').toString()),
-        token: (map['token'] ?? '').toString(),
-      );
-      _status = AuthStatus.authenticated;
-    } catch (_) {
-      _status = AuthStatus.unauthenticated;
-    }
-    notifyListeners();
+  Future<void> restoreSession() {
+    final generation = _generation;
+    return _enqueue(() async {
+      if (!_isCurrent(generation)) return;
+      try {
+        final hasToken = await ApiClient.instance.hasToken();
+        final profileJson =
+            await SecureStorageService.instance.getUserProfile();
+        if (!_isCurrent(generation)) return;
+        if (!hasToken || profileJson == null) {
+          await _clearLocalSession();
+          if (!_isCurrent(generation)) return;
+          ApiClient.instance.invalidateSession();
+          _currentUser = null;
+          _status = AuthStatus.unauthenticated;
+          _notify();
+          return;
+        }
+        final map = jsonDecode(profileJson) as Map<String, dynamic>;
+        final user = AppUser(
+          name: (map['name'] ?? '').toString(),
+          email: (map['email'] ?? '').toString(),
+          role: UserRole.values.byName((map['role'] ?? 'employee').toString()),
+          token: (map['token'] ?? '').toString(),
+        );
+        if (!_isCurrent(generation)) return;
+        _currentUser = user;
+        ApiClient.instance.activateSession();
+        _status = AuthStatus.authenticated;
+      } catch (_) {
+        if (!_isCurrent(generation)) return;
+        ApiClient.instance.invalidateSession();
+        _currentUser = null;
+        _status = AuthStatus.unauthenticated;
+        // A corrupt profile or storage error must never restore a partial
+        // session. Attempt all deletes even if one of them fails.
+        try {
+          await _clearLocalSession();
+        } catch (_) {
+          _errorMessage = 'تعذّر مسح بيانات الجلسة من الجهاز.';
+        }
+        if (!_isCurrent(generation)) return;
+      }
+      _notify();
+    });
   }
 
   AppUser _normalizeUser(dynamic value) {
@@ -155,68 +212,142 @@ class AuthProvider extends ChangeNotifier {
     );
   }
 
-  Future<bool> login({required String email, required String password}) async {
-    _setLoading(true);
-    _errorMessage = null;
-    try {
-      final user = await _repository.login(email: email, password: password);
-      final appUser = _normalizeUser(user);
-      _currentUser = appUser;
-      _status = AuthStatus.authenticated;
-      await SecureStorageService.instance.saveUserProfile(jsonEncode({
-        'name': appUser.name,
-        'email': appUser.email,
-        'role': appUser.role.name,
-        'token': appUser.token,
-      }));
-      _setLoading(false);
-      return true;
-    } on AuthException catch (e) {
-      _errorMessage = e.message;
-      _setLoading(false);
-      return false;
-    } catch (_) {
-      _errorMessage = 'حدث خطأ غير متوقع، حاول مرة أخرى.';
-      _setLoading(false);
-      return false;
+  Future<bool> login({required String email, required String password}) {
+    final generation = ++_generation;
+    ApiClient.instance.invalidateSession();
+    _currentUser = null;
+    if (_status == AuthStatus.authenticated) {
+      _status = AuthStatus.unauthenticated;
     }
+    _errorMessage = null;
+    _setLoading(true);
+    return _enqueue(() async {
+      if (!_isCurrent(generation)) return false;
+      try {
+        // Never combine a new user's profile with old or partial tokens.
+        await _clearLocalSession();
+        if (!_isCurrent(generation)) return false;
+        final user = await _repository.login(email: email, password: password);
+        if (!_isCurrent(generation)) return false;
+        final appUser = _normalizeUser(user);
+        await SecureStorageService.instance.saveUserProfile(jsonEncode({
+          'name': appUser.name,
+          'email': appUser.email,
+          'role': appUser.role.name,
+          'token': appUser.token,
+        }));
+        if (!_isCurrent(generation)) return false;
+        _currentUser = appUser;
+        ApiClient.instance.activateSession();
+        _status = AuthStatus.authenticated;
+        _setLoading(false);
+        return true;
+      } on AuthException catch (e) {
+        if (!_isCurrent(generation)) return false;
+        _errorMessage = e.message;
+      } catch (_) {
+        if (!_isCurrent(generation)) return false;
+        _errorMessage = 'حدث خطأ غير متوقع، حاول مرة أخرى.';
+      }
+      // Login can fail after its repository has already persisted tokens.
+      try {
+        await _clearLocalSession();
+      } catch (_) {
+        if (_isCurrent(generation)) {
+          _errorMessage = 'تعذّر مسح بيانات الجلسة من الجهاز.';
+        }
+      }
+      if (_isCurrent(generation)) {
+        _currentUser = null;
+        _status = AuthStatus.unauthenticated;
+        _setLoading(false);
+      }
+      return false;
+    });
   }
 
-  Future<bool> forgotPassword({required String email}) async {
+  Future<bool> forgotPassword({required String email}) {
+    final generation = _generation;
     _setLoading(true);
     _errorMessage = null;
-    try {
-      await _repository.forgotPassword(email: email);
-      _setLoading(false);
-      return true;
-    } on AuthException catch (e) {
-      _errorMessage = e.message;
+    return _enqueue(() async {
+      if (!_isCurrent(generation)) return false;
+      try {
+        await _repository.forgotPassword(email: email);
+        if (!_isCurrent(generation)) return false;
+        _setLoading(false);
+        return true;
+      } on AuthException catch (e) {
+        if (!_isCurrent(generation)) return false;
+        _errorMessage = e.message;
+      } catch (_) {
+        if (!_isCurrent(generation)) return false;
+        _errorMessage = 'حدث خطأ غير متوقع، حاول مرة أخرى.';
+      }
       _setLoading(false);
       return false;
-    } catch (_) {
-      _errorMessage = 'حدث خطأ غير متوقع، حاول مرة أخرى.';
-      _setLoading(false);
-      return false;
-    }
+    });
   }
 
   /// يُستدعى تلقائياً عند انتهاء صلاحية الجلسة (401 + فشل تجديد التوكن).
-  Future<void> handleSessionExpired() async {
-    await _repository.logout();
+  Future<void> handleSessionExpired() => _endSession();
+
+  Future<void> logout() => _endSession();
+
+  Future<void> _endSession() {
+    final generation = ++_generation;
+    // Do this synchronously, before network/storage awaits or navigation.
+    ApiClient.instance.invalidateSession();
     _currentUser = null;
     _status = AuthStatus.unauthenticated;
-    notifyListeners();
+    _errorMessage = null;
+    _isLoading = false;
+    _notify();
+    return _enqueue(() async {
+      // Remove the restorable profile before trying server-side revocation.
+      try {
+        await SecureStorageService.instance.clearUserProfile();
+      } catch (_) {
+        // Retry as part of the full cleanup below.
+      }
+      try {
+        await _repository.logout();
+      } catch (_) {
+        // Local cleanup must still run if logout or secure storage fails.
+      }
+      try {
+        await _clearLocalSession();
+      } catch (_) {
+        if (_isCurrent(generation)) {
+          _errorMessage = 'تعذّر مسح بيانات الجلسة من الجهاز.';
+          _notify();
+        }
+      }
+    });
   }
 
-  Future<void> logout() async {
-    await _repository.logout();
-    _currentUser = null;
-    _status = AuthStatus.unauthenticated;
-    notifyListeners();
+  Future<void> _clearLocalSession() async {
+    Object? firstError;
+    StackTrace? firstStack;
+    try {
+      await ApiClient.instance.clearTokens();
+    } catch (error, stack) {
+      firstError = error;
+      firstStack = stack;
+    }
+    try {
+      await SecureStorageService.instance.clearSession();
+    } catch (error, stack) {
+      firstError ??= error;
+      firstStack ??= stack;
+    }
+    if (firstError != null) {
+      Error.throwWithStackTrace(firstError, firstStack!);
+    }
   }
 
   void _setLoading(bool value) {
     _isLoading = value;
-    notifyListeners();
+    _notify();
   }
 }

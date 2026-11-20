@@ -3,22 +3,40 @@ import httpStatus from 'http-status';
 import prisma from '../client';
 import ApiError from '../utils/ApiError';
 
-
 /**
  * Generate the next Printer ID for a given college
  * Format: COL{collegeId padded to 2 digits}-PR{counter padded to 3 digits}
  */
-const generatePrinterId = async (collegeId: number): Promise<string> => {
-  const collegePart = `COL${String(collegeId).padStart(2, '0')}`;
-
-  const count = await prisma.printer.count({
-    where: { collegeId }
+const generatePrinterId = async (
+  collegeId: number,
+  tx: Prisma.TransactionClient
+): Promise<string> => {
+  const prefix = `COL${String(collegeId).padStart(2, '0')}-PR`;
+  // IDs are globally unique, even if an existing record belongs to another college.
+  const printers = await tx.printer.findMany({
+    where: { id: { startsWith: prefix } },
+    select: { id: true }
   });
 
-  const nextNumber = count + 1;
-  const printerPart = `PR${String(nextNumber).padStart(3, '0')}`;
+  let highest = BigInt(0);
+  for (const printer of printers) {
+    const suffix = printer.id.slice(prefix.length);
+    if (/^\d+$/.test(suffix)) {
+      const number = BigInt(suffix);
+      if (number > highest) highest = number;
+    }
+  }
 
-  return `${collegePart}-${printerPart}`;
+  return `${prefix}${String(highest + BigInt(1)).padStart(3, '0')}`;
+};
+
+const isPrinterIdConflict = (error: unknown): boolean => {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002')
+    return false;
+  const target = error.meta?.target;
+  return Array.isArray(target)
+    ? target.length === 1 && target[0] === 'id'
+    : target === 'id' || target === 'Printer_pkey';
 };
 
 /**
@@ -34,14 +52,33 @@ const createPrinter = async (data: {
     throw new ApiError(httpStatus.BAD_REQUEST, 'College not found');
   }
 
-  const id = await generatePrinterId(data.collegeId);
-
-  return prisma.printer.create({
-    data: {
-      ...data,
-      id
+  // The college row serializes cooperating creators, including across app instances.
+  // Retry only primary-key conflicts from writers that do not take this lock.
+  const maxAttempts = 5;
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          const colleges = await tx.$queryRaw<{ id: number }[]>`
+            SELECT "id" FROM "College" WHERE "id" = ${data.collegeId} FOR NO KEY UPDATE
+          `;
+          if (colleges.length === 0) {
+            throw new ApiError(httpStatus.BAD_REQUEST, 'College not found');
+          }
+          const id = await generatePrinterId(data.collegeId, tx);
+          return tx.printer.create({ data: { ...data, id } });
+        },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+          maxWait: 10000,
+          timeout: 30000
+        }
+      );
+    } catch (error) {
+      if (!isPrinterIdConflict(error) || attempt === maxAttempts - 1) throw error;
     }
-  });
+  }
+  throw new Error('Unable to generate printer ID');
 };
 
 /**

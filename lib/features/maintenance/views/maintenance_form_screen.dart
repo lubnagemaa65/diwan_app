@@ -9,7 +9,6 @@ import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../models/asset_item.dart';
 import '../../../models/employee_model.dart';
-import '../../assets/providers/assets_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/maintenance_provider.dart';
 
@@ -28,6 +27,8 @@ class _MaintenanceFormScreenState extends State<MaintenanceFormScreen> {
   final _descriptionController = TextEditingController();
 
   AssetItem? _selectedAsset;
+  List<AssetItem>? _assets;
+  String? _assetsError;
 
   String _problemType = 'hardware';
   static const Map<String, String> _problemTypes = {
@@ -46,16 +47,40 @@ class _MaintenanceFormScreenState extends State<MaintenanceFormScreen> {
     super.initState();
     _selectedAsset = widget.preselectedAsset;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       if (_selectedAsset == null) {
-        final provider = context.read<AssetsProvider>();
-        if (provider.status == LoadStatus.initial) {
-          provider.loadAssets();
-        }
+        _loadAssets();
       }
       if (context.read<AuthProvider>().isAdmin) {
         _loadEmployees();
       }
     });
+  }
+
+  Future<void> _loadAssets() async {
+    try {
+      // لا نستخدم مرشحات البحث المخزّنة لشاشة الأصول في هذا النموذج.
+      final lists = await Future.wait([
+        ComputerService.list()
+            .then((items) => items.map(AssetItem.fromComputer).toList()),
+        PrinterService.list()
+            .then((items) => items.map(AssetItem.fromPrinter).toList()),
+      ]);
+      if (!mounted) return;
+      setState(() => _assets = lists.expand((items) => items).toList());
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _assets = [];
+        _assetsError = e.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _assets = [];
+        _assetsError = 'تعذّر تحميل الأجهزة';
+      });
+    }
   }
 
   Future<void> _loadEmployees() async {
@@ -136,7 +161,6 @@ class _MaintenanceFormScreenState extends State<MaintenanceFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final assetsProvider = context.watch<AssetsProvider>();
     final maintenanceProvider = context.watch<MaintenanceProvider>();
     final auth = context.watch<AuthProvider>();
 
@@ -181,7 +205,7 @@ class _MaintenanceFormScreenState extends State<MaintenanceFormScreen> {
               const SizedBox(height: 8),
               if (widget.preselectedAsset != null)
                 _PreselectedAssetTile(asset: widget.preselectedAsset!)
-              else if (assetsProvider.status == LoadStatus.loading)
+              else if (_assets == null)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: LinearProgressIndicator(),
@@ -192,8 +216,9 @@ class _MaintenanceFormScreenState extends State<MaintenanceFormScreen> {
                   isExpanded: true,
                   decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.devices_outlined)),
-                  hint: Text(context.tr('select_device')),
-                  items: assetsProvider.filteredAssets
+                  hint: Text(_assetsError ?? context.tr('select_device'),
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  items: _assets!
                       .map((asset) => DropdownMenuItem(
                             value: asset,
                             child: Text('${asset.code} • ${asset.typeLabel}'),

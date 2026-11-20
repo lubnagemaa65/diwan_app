@@ -44,6 +44,9 @@ class SecureStorageService {
   Future<String?> getUserProfile() =>
       _storage.read(key: AppConstants.storageKeys.userProfile);
 
+  Future<void> clearUserProfile() =>
+      _storage.delete(key: AppConstants.storageKeys.userProfile);
+
   // ---------------- Locale / Theme (اختياري تخزينها هنا أو في SharedPreferences) ----------------
   Future<void> saveLocale(String localeCode) => _storage.write(
       key: AppConstants.storageKeys.appLocale, value: localeCode);
@@ -53,9 +56,24 @@ class SecureStorageService {
 
   // ---------------- Clear (تسجيل الخروج) ----------------
   Future<void> clearSession() async {
-    await _storage.delete(key: AppConstants.storageKeys.accessToken);
-    await _storage.delete(key: AppConstants.storageKeys.refreshToken);
-    await _storage.delete(key: AppConstants.storageKeys.userProfile);
+    Object? firstError;
+    StackTrace? firstStack;
+    for (final key in [
+      AppConstants.storageKeys.accessToken,
+      AppConstants.storageKeys.refreshToken,
+      AppConstants.storageKeys.userProfile,
+      'current_user_json',
+    ]) {
+      try {
+        await _storage.delete(key: key);
+      } catch (error, stack) {
+        firstError ??= error;
+        firstStack ??= stack;
+      }
+    }
+    if (firstError != null) {
+      Error.throwWithStackTrace(firstError, firstStack!);
+    }
   }
 
   Future<void> clearAll() => _storage.deleteAll();

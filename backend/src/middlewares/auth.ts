@@ -23,7 +23,17 @@ const verifyCallback =
       const hasRequiredRights = requiredRights.every((requiredRight) =>
         userRights.includes(requiredRight)
       );
-      if (!hasRequiredRights && req.params.userId !== user.id) {
+      // Express path parameters are strings. Allow a user to read only their
+      // own profile; do not grant an implicit bypass for writes or other rights.
+      const userId = String(req.params.userId ?? '');
+      const isOwnProfileRead =
+        req.method === 'GET' &&
+        requiredRights.length === 1 &&
+        requiredRights[0] === 'getUsers' &&
+        /^[1-9]\d*$/.test(userId) &&
+        Number.isSafeInteger(Number(userId)) &&
+        Number(userId) === user.id;
+      if (!hasRequiredRights && !isOwnProfileRead) {
         return reject(new ApiError(httpStatus.FORBIDDEN, 'Forbidden'));
       }
     }

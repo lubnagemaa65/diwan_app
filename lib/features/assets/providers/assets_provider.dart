@@ -19,6 +19,7 @@ class AssetsProvider extends ChangeNotifier {
   String _typeFilter = 'all'; // all | computer | printer
   String _statusFilter = 'all'; // all | active | broken | underMaintenance
   bool _isSubmitting = false;
+  int _loadGeneration = 0;
 
   LoadStatus get status => _status;
   String get errorMessage => _errorMessage;
@@ -47,7 +48,9 @@ class AssetsProvider extends ChangeNotifier {
   }
 
   Future<void> loadAssets() async {
+    final generation = ++_loadGeneration;
     _status = LoadStatus.loading;
+    _errorMessage = '';
     notifyListeners();
     try {
       final results = await Future.wait([
@@ -59,12 +62,15 @@ class AssetsProvider extends ChangeNotifier {
       final printers =
           results[1].map((p) => AssetItem.fromPrinter(p as dynamic)).toList();
 
+      if (generation != _loadGeneration) return;
       _allAssets = [...computers, ...printers];
       _status = LoadStatus.loaded;
     } on ApiException catch (e) {
+      if (generation != _loadGeneration) return;
       _errorMessage = e.message;
       _status = LoadStatus.error;
     } catch (_) {
+      if (generation != _loadGeneration) return;
       _errorMessage = 'تعذّر تحميل الأصول، حاول مرة أخرى.';
       _status = LoadStatus.error;
     }
@@ -115,23 +121,23 @@ class AssetsProvider extends ChangeNotifier {
       );
 
   Future<bool> _runMutation(Future<void> Function() action) async {
+    if (_isSubmitting) return false;
     _isSubmitting = true;
+    _errorMessage = '';
     notifyListeners();
     try {
       await action();
       await loadAssets();
-      _isSubmitting = false;
       return true;
     } on ApiException catch (e) {
       _errorMessage = e.message;
-      _isSubmitting = false;
-      notifyListeners();
       return false;
     } catch (_) {
       _errorMessage = 'تعذّر تنفيذ العملية، حاول مرة أخرى.';
+      return false;
+    } finally {
       _isSubmitting = false;
       notifyListeners();
-      return false;
     }
   }
 

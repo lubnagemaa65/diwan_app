@@ -25,8 +25,9 @@ class ProfileScreen extends StatelessWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      await context.read<AuthProvider>().logout();
-      if (context.mounted) {
+      final auth = context.read<AuthProvider>();
+      await auth.logout();
+      if (context.mounted && !auth.navigationManaged && !auth.isAuthenticated) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const LoginScreen()),
           (route) => false,

@@ -124,10 +124,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     value: '${maintenance.pendingCount}',
                     numericValue: maintenance.pendingCount,
                     color: AppColors.statusMaintenance,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const MaintenanceListScreen()),
-                    ),
+                    onTap: () {
+                      context
+                          .read<MaintenanceProvider>()
+                          .setStatusFilter('pending');
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const MaintenanceListScreen()),
+                      );
+                    },
                   ),
                   TrendStatCard(
                     icon: Icons.build_circle_outlined,

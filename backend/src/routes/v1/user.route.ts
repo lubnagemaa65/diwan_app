@@ -178,7 +178,7 @@ export default router;
  *
  *   patch:
  *     summary: Update a user
- *     description: Logged in users can only update their own information. Only admins can update other users.
+ *     description: Only admins can update user information.
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -229,7 +229,7 @@ export default router;
  *
  *   delete:
  *     summary: Delete a user
- *     description: Logged in users can delete only themselves. Only admins can delete other users.
+ *     description: Only admins can delete users.
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []

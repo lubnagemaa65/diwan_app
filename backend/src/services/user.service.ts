@@ -130,7 +130,7 @@ const getUserByEmail = async <Key extends keyof User>(
 /**
  * Update user by id
  * @param {ObjectId} userId
- * @param {Object} updateBody
+ * @param {Object} updateBody - password, when provided, must be plaintext
  * @returns {Promise<User>}
  */
 const updateUserById = async <Key extends keyof User>(
@@ -148,9 +148,17 @@ const updateUserById = async <Key extends keyof User>(
     throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
   }
 }
+  // Hash every provided plaintext password here, including Prisma's { set } form.
+  // Work on a copy so callers' inputs are not changed.
+  const data = { ...updateBody };
+  if (typeof updateBody.password === 'string') {
+    data.password = await encryptPassword(updateBody.password);
+  } else if (updateBody.password?.set !== undefined) {
+    data.password = { set: await encryptPassword(updateBody.password.set) };
+  }
   const updatedUser = await prisma.user.update({
     where: { id: user.id },
-    data: updateBody,
+    data,
     select: keys.reduce((obj, k) => ({ ...obj, [k]: true }), {})
   });
   return updatedUser as Pick<User, Key> | null;
@@ -166,8 +174,12 @@ const deleteUserById = async (userId: number): Promise<User> => {
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
-  await prisma.token.deleteMany({ where: { userId: user.id } });
-  await prisma.user.delete({ where: { id: user.id } });
+  // A foreign-key restriction may prevent deleting the user. Roll back token
+  // deletion as well so a failed operation does not silently revoke sessions.
+  await prisma.$transaction(async (tx) => {
+    await tx.token.deleteMany({ where: { userId: user.id } });
+    await tx.user.delete({ where: { id: user.id } });
+  });
   return user;
 };
 

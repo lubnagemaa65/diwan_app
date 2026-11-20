@@ -150,10 +150,14 @@ class AssetsRepository {
   Map<String, dynamic> _computerBody(Map<String, dynamic> p,
       {required bool forCreate}) {
     final body = <String, dynamic>{};
+    _rejectUnsupportedFields(p, forCreate: forCreate, isPrinter: false);
 
     final type = p['type']?.toString().trim().toLowerCase();
     if (type == 'laptop' || type == 'محمول') body['type'] = 'LAPTOP';
     if (type == 'desktop' || type == 'مكتبي') body['type'] = 'DESKTOP';
+    if (p['type'] != null && !body.containsKey('type')) {
+      throw ApiException('نوع الحاسوب غير صالح.');
+    }
 
     _put(body, 'processor', p['processor']);
     _put(body, 'motherboard', p['motherboard']);
@@ -163,13 +167,42 @@ class AssetsRepository {
     _put(body, 'ramType', p['ramType'] ?? p['ram']);
     _put(body, 'graphicsCard', p['graphicsCard']?.toString().toUpperCase());
     _put(body, 'status', _statusToApi(p['status']));
+    if (body.containsKey('hardDiskType') &&
+        !['SATA', 'IDE'].contains(body['hardDiskType'])) {
+      throw ApiException('نوع القرص غير مدعوم؛ يقبل الخادم SATA أو IDE.');
+    }
+    if (body.containsKey('graphicsCard') &&
+        !['INTEGRATED', 'SEPARATE'].contains(body['graphicsCard'])) {
+      throw ApiException('نوع بطاقة الرسوميات غير صالح.');
+    }
 
     // employeeId يقبل null (فك الربط)، فنرسله إن كان المفتاح موجوداً
     if (p.containsKey('employeeId')) {
-      body['employeeId'] = _toInt(p['employeeId']);
+      body['employeeId'] = p['employeeId'] == null
+          ? null
+          : _requiredInt(p['employeeId'], 'الموظف');
     }
     // الكلية تُرسل عند الإنشاء فقط (التعديل لا يقبلها)
-    if (forCreate) body['collegeId'] = _toInt(p['collegeId']);
+    if (forCreate) {
+      body['collegeId'] = _requiredInt(p['collegeId'], 'الكلية');
+      if (!body.containsKey('motherboard') ||
+          !body.containsKey('graphicsCard')) {
+        throw ApiException(
+          'تعذّر إنشاء الحاسوب: يتطلب الخادم اللوحة الأم وبطاقة الرسوميات، وهما غير متاحتين في هذا النموذج.',
+        );
+      }
+      for (final field in [
+        'type',
+        'processor',
+        'hardDiskType',
+        'hardDiskSpace',
+        'ramType'
+      ]) {
+        if (!body.containsKey(field)) {
+          throw ApiException('يرجى إكمال بيانات الحاسوب المطلوبة.');
+        }
+      }
+    }
 
     return body;
   }
@@ -177,13 +210,32 @@ class AssetsRepository {
   Map<String, dynamic> _printerBody(Map<String, dynamic> p,
       {required bool forCreate}) {
     final body = <String, dynamic>{};
+    _rejectUnsupportedFields(p, forCreate: forCreate, isPrinter: true);
     _put(body, 'type', p['type']);
     _put(body, 'status', _statusToApi(p['status']));
-    if (forCreate) body['collegeId'] = _toInt(p['collegeId']);
+    if (forCreate) {
+      body['collegeId'] = _requiredInt(p['collegeId'], 'الكلية');
+      if (!body.containsKey('type')) {
+        throw ApiException('يرجى اختيار نوع الطابعة.');
+      }
+    }
     return body;
   }
 
   // ===================== أدوات مساعدة =====================
+
+  void _rejectUnsupportedFields(Map<String, dynamic> payload,
+      {required bool forCreate, required bool isPrinter}) {
+    if (payload['code']?.toString().trim().isNotEmpty == true) {
+      throw ApiException('يُولّد الخادم معرّف الأصل ولا يقبل تعديله.');
+    }
+    if (!forCreate && payload.containsKey('collegeId')) {
+      throw ApiException('لا يدعم الخادم تغيير كلية الأصل بعد إنشائه.');
+    }
+    if (isPrinter && payload['employeeId'] != null) {
+      throw ApiException('لا يدعم الخادم ربط الطابعة بموظف.');
+    }
+  }
 
   bool _isSet(String? v) => v != null && v.isNotEmpty && v != 'all';
 
@@ -193,12 +245,21 @@ class AssetsRepository {
     }
   }
 
-  int? _toInt(dynamic v) => v == null ? null : int.tryParse(v.toString());
+  int _requiredInt(dynamic value, String label) {
+    final parsed = int.tryParse(value?.toString() ?? '');
+    if (parsed == null) throw ApiException('معرّف $label غير صالح.');
+    return parsed;
+  }
 
   /// يحوّل حالة التطبيق إلى ACTIVE / DISABLED / MAINTENANCE
   String? _statusToApi(dynamic v) {
     if (v == null) return null;
-    if (v is AssetStatus) return ApiMappers.assetStatusToApi(v);
+    if (v is AssetStatus) {
+      if (v == AssetStatus.unknown) {
+        throw ApiException('حالة الأصل غير معروفة.');
+      }
+      return ApiMappers.assetStatusToApi(v);
+    }
     switch (v.toString().trim().toLowerCase()) {
       case 'active':
       case 'enabled':
@@ -212,7 +273,7 @@ class AssetsRepository {
       case 'maintenance':
         return 'MAINTENANCE';
       default:
-        return null;
+        throw ApiException('حالة الأصل غير معروفة.');
     }
   }
 
@@ -251,6 +312,6 @@ class AssetsRepository {
     if (data is Map && data['results'] is List) return data['results'] as List;
     if (data is Map && data['data'] is List) return data['data'] as List;
     if (data is Map && data['items'] is List) return data['items'] as List;
-    return [];
+    throw ApiException('استجابة قائمة الأصول غير صالحة.');
   }
 }

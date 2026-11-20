@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/localization/app_localizations.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/status_chip.dart';
 import '../../../models/asset_item.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../maintenance/views/maintenance_form_screen.dart';
 
 class AssetDetailsScreen extends StatelessWidget {
@@ -31,11 +33,13 @@ class AssetDetailsScreen extends StatelessWidget {
                       width: 72,
                       height: 72,
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        isComputer ? Icons.computer_rounded : Icons.print_rounded,
+                        isComputer
+                            ? Icons.computer_rounded
+                            : Icons.print_rounded,
                         color: AppColors.primary,
                         size: 34,
                       ),
@@ -43,7 +47,8 @@ class AssetDetailsScreen extends StatelessWidget {
                     const SizedBox(height: 14),
                     Text(
                       asset.code,
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     StatusChip.asset(status: asset.status),
@@ -61,7 +66,8 @@ class AssetDetailsScreen extends StatelessWidget {
                 if (isComputer && computer != null) ...[
                   _InfoRow(context.tr('processor'), computer.processor ?? '—'),
                   _InfoRow(context.tr('ram'), computer.ram ?? '—'),
-                  _InfoRow(context.tr('disk'), computer.diskLabel.isEmpty ? '—' : computer.diskLabel),
+                  _InfoRow(context.tr('disk'),
+                      computer.diskLabel.isEmpty ? '—' : computer.diskLabel),
                 ],
               ],
             ),
@@ -70,9 +76,20 @@ class AssetDetailsScreen extends StatelessWidget {
               label: context.tr('new_maintenance_request'),
               icon: Icons.build_outlined,
               onPressed: () {
+                if (context.read<AuthProvider>().isTechnician) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'يتطلب الخادم تحديد الموظف مقدّم الطلب للفني، وهذا الخيار غير متاح في النموذج الحالي.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => MaintenanceFormScreen(preselectedAsset: asset),
+                    builder: (_) =>
+                        MaintenanceFormScreen(preselectedAsset: asset),
                   ),
                 );
               },
@@ -103,7 +120,9 @@ class _InfoCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            Text(title,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
             const Divider(height: 20),
             ...rows.map(
               (r) => Padding(
@@ -111,7 +130,8 @@ class _InfoCard extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(r.label, style: const TextStyle(color: AppColors.textSecondary)),
+                    Text(r.label,
+                        style: const TextStyle(color: AppColors.textSecondary)),
                     Flexible(
                       child: Text(
                         r.value,

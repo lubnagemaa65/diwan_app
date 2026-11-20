@@ -2,7 +2,7 @@ class Validators {
   Validators._();
 
   static final RegExp _emailRegex =
-      RegExp(r'^[\w\.\-]+@([\w\-]+\.)+[\w\-]{2,4}$');
+      RegExp(r'^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$');
 
   static String? email(String? value, {String requiredMsg = 'هذا الحقل مطلوب', String invalidMsg = 'يرجى إدخال بريد إلكتروني صحيح'}) {
     if (value == null || value.trim().isEmpty) return requiredMsg;

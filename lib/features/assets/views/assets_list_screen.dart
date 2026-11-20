@@ -24,11 +24,27 @@ class _AssetsListScreenState extends State<AssetsListScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       context.read<AssetsProvider>().loadAssets();
     });
   }
 
+  bool _canChangeAssets(BuildContext context) {
+    String? message;
+    if (!context.read<AuthProvider>().isAdmin) {
+      message =
+          'تعديل الأصول وحذفها وتحديث حالتها متاح للمدير فقط حسب صلاحيات الخادم.';
+    } else if (context.read<AssetsProvider>().isSubmitting) {
+      message = 'يرجى الانتظار حتى تكتمل العملية الجارية.';
+    }
+    if (message == null) return true;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+    return false;
+  }
+
   Future<void> _showAddChooser(BuildContext context) async {
+    if (!_canChangeAssets(context)) return;
     final choice = await showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -68,6 +84,7 @@ class _AssetsListScreenState extends State<AssetsListScreen> {
   }
 
   Future<void> _confirmDelete(BuildContext context, AssetItem asset) async {
+    if (!_canChangeAssets(context)) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -85,7 +102,9 @@ class _AssetsListScreenState extends State<AssetsListScreen> {
       ),
     );
 
-    if (confirmed != true || !context.mounted) return;
+    if (confirmed != true || !context.mounted || !_canChangeAssets(context)) {
+      return;
+    }
 
     final provider = context.read<AssetsProvider>();
     final success = asset.computer != null
@@ -102,38 +121,45 @@ class _AssetsListScreenState extends State<AssetsListScreen> {
   }
 
   Future<void> _showStatusDialog(BuildContext context, AssetItem asset) async {
-    AssetStatus selected = asset.status;
+    if (!_canChangeAssets(context)) return;
+    AssetStatus? selected =
+        asset.status == AssetStatus.unknown ? null : asset.status;
     final result = await showDialog<AssetStatus>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setState) => AlertDialog(
           title: Text('تحديث حالة ${asset.code}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: AssetStatus.values
-                .where((s) => s != AssetStatus.unknown)
-                .map((s) {
-              return RadioListTile<AssetStatus>(
-                value: s,
-                groupValue: selected,
-                title: Text(s.name),
-                onChanged: (v) => setState(() => selected = v ?? selected),
-              );
-            }).toList(),
+          content: RadioGroup<AssetStatus>(
+            groupValue: selected,
+            onChanged: (v) => setState(() => selected = v),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: AssetStatus.values
+                  .where((s) => s != AssetStatus.unknown)
+                  .map((s) => RadioListTile<AssetStatus>(
+                        value: s,
+                        title: Text(s.name),
+                      ))
+                  .toList(),
+            ),
           ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
                 child: const Text('إلغاء')),
             FilledButton(
-                onPressed: () => Navigator.of(ctx).pop(selected),
+                onPressed: selected == null
+                    ? null
+                    : () => Navigator.of(ctx).pop(selected),
                 child: const Text('حفظ')),
           ],
         ),
       ),
     );
 
-    if (result == null || !context.mounted) return;
+    if (result == null || !context.mounted || !_canChangeAssets(context)) {
+      return;
+    }
 
     final provider = context.read<AssetsProvider>();
     final payload = {'status': result.name};
@@ -157,7 +183,7 @@ class _AssetsListScreenState extends State<AssetsListScreen> {
     final canManage = auth.isAdmin || auth.isTechnician;
 
     return Scaffold(
-      appBar: AppBar(title: const Text(' تقرير طلبات الصيانة')),
+      appBar: AppBar(title: const Text('الأصول')),
       floatingActionButton: auth.isAdmin
           ? FloatingActionButton.extended(
               onPressed: () => _showAddChooser(context),
@@ -284,6 +310,7 @@ class _AssetsListScreenState extends State<AssetsListScreen> {
                   builder: (_) => AssetDetailsScreen(asset: assets[index])),
             ),
             onEdit: () {
+              if (!_canChangeAssets(context)) return;
               final asset = assets[index];
               if (asset.computer != null) {
                 Navigator.of(context).push(

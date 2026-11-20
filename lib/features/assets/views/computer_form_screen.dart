@@ -5,6 +5,7 @@ import '../../../core/utils/validators.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../models/computer_model.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../colleges/providers/colleges_provider.dart';
 import '../../employees/providers/employees_provider.dart';
 import '../providers/assets_provider.dart';
@@ -32,6 +33,7 @@ class _ComputerFormScreenState extends State<ComputerFormScreen> {
   String? _ram;
   String? _collegeId;
   String? _employeeId;
+  int _collegeFieldVersion = 0;
 
   @override
   void initState() {
@@ -47,6 +49,7 @@ class _ComputerFormScreenState extends State<ComputerFormScreen> {
     _employeeId = e?.employeeId;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final colleges = context.read<CollegesProvider>();
       if (colleges.status == LoadStatus.initial) colleges.loadColleges();
       final employees = context.read<EmployeesProvider>();
@@ -64,20 +67,36 @@ class _ComputerFormScreenState extends State<ComputerFormScreen> {
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
+    if (!context.read<AuthProvider>().isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('إدارة الأصول متاحة للمدير فقط حسب صلاحيات الخادم.'),
+        backgroundColor: AppColors.error,
+      ));
+      return;
+    }
+    if (!widget.isEditing) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'تعذّر إنشاء الحاسوب: يتطلب الخادم اللوحة الأم وبطاقة الرسوميات، وهما غير متاحتين في هذا النموذج.'),
+        backgroundColor: AppColors.error,
+      ));
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
-    if (_collegeId == null) {
+    if (_collegeId != widget.existing!.collegeId) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى اختيار الكلية'), backgroundColor: AppColors.error),
+        const SnackBar(
+            content: Text(
+                'لا يدعم الخادم تغيير كلية الحاسوب بعد إنشائه؛ أعد اختيار الكلية الأصلية.'),
+            backgroundColor: AppColors.error),
       );
       return;
     }
 
     final provider = context.read<AssetsProvider>();
     final payload = {
-      'code': _codeController.text.trim(),
       'type': _type == ComputerType.laptop ? 'laptop' : 'desktop',
-      'collegeId': _collegeId,
-      'employeeId': _employeeId,
+      if (_employeeId != widget.existing?.employeeId) 'employeeId': _employeeId,
       'processor': _processorController.text.trim(),
       'diskType': _diskType,
       'diskSize': _diskSizeController.text.trim(),
@@ -92,14 +111,17 @@ class _ComputerFormScreenState extends State<ComputerFormScreen> {
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(widget.isEditing ? 'تم تحديث الحاسوب' : 'تمت إضافة الحاسوب'),
+          content:
+              Text(widget.isEditing ? 'تم تحديث الحاسوب' : 'تمت إضافة الحاسوب'),
           backgroundColor: AppColors.success,
         ),
       );
       Navigator.of(context).pop();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(provider.errorMessage), backgroundColor: AppColors.error),
+        SnackBar(
+            content: Text(provider.errorMessage),
+            backgroundColor: AppColors.error),
       );
     }
   }
@@ -109,9 +131,37 @@ class _ComputerFormScreenState extends State<ComputerFormScreen> {
     final assetsProvider = context.watch<AssetsProvider>();
     final collegesProvider = context.watch<CollegesProvider>();
     final employeesProvider = context.watch<EmployeesProvider>();
+    final collegeOptions = <String, String>{
+      for (final c in collegesProvider.colleges) c.id: c.name,
+      if (_collegeId != null &&
+          !collegesProvider.colleges.any((c) => c.id == _collegeId))
+        _collegeId!: _collegeId == widget.existing?.collegeId
+            ? widget.existing?.collegeName ?? _collegeId!
+            : _collegeId!,
+    };
+    final employeeOptions = <String, String>{
+      for (final e in employeesProvider.employees) e.id: e.fullName,
+      if (_employeeId != null &&
+          !employeesProvider.employees.any((e) => e.id == _employeeId))
+        _employeeId!: _employeeId == widget.existing?.employeeId
+            ? widget.existing?.employeeName ?? _employeeId!
+            : _employeeId!,
+    };
+    final ramOptions = <String>{
+      'DDR3',
+      'DDR4',
+      'DDR5',
+      if (_ram != null) _ram!
+    };
+    final diskOptions = <String>{
+      'SATA',
+      'IDE',
+      if (_diskType != null) _diskType!
+    };
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.isEditing ? 'تعديل حاسوب' : 'إضافة حاسوب جديد')),
+      appBar: AppBar(
+          title: Text(widget.isEditing ? 'تعديل حاسوب' : 'إضافة حاسوب جديد')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -119,36 +169,61 @@ class _ComputerFormScreenState extends State<ComputerFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              CustomTextField(
+              TextFormField(
                 controller: _codeController,
-                label: 'المعرّف (مثال: COL03-PC001) *',
-                validator: (v) => Validators.required(v),
+                readOnly: true,
+                decoration: const InputDecoration(
+                    labelText: 'المعرّف (يُولّد تلقائياً)'),
               ),
               const SizedBox(height: 14),
               DropdownButtonFormField<ComputerType>(
                 initialValue: _type,
                 decoration: const InputDecoration(labelText: 'النوع *'),
-                items: const [
-                  DropdownMenuItem(value: ComputerType.desktop, child: Text('مكتبي')),
-                  DropdownMenuItem(value: ComputerType.laptop, child: Text('محمول')),
+                items: [
+                  const DropdownMenuItem(
+                      value: ComputerType.desktop, child: Text('مكتبي')),
+                  const DropdownMenuItem(
+                      value: ComputerType.laptop, child: Text('محمول')),
+                  if (_type == ComputerType.unknown)
+                    const DropdownMenuItem(
+                        value: ComputerType.unknown, child: Text('غير معروف')),
                 ],
-                onChanged: (v) => setState(() => _type = v ?? ComputerType.desktop),
+                validator: (v) => v == null || v == ComputerType.unknown
+                    ? 'يرجى اختيار نوع الحاسوب'
+                    : null,
+                onChanged: (v) =>
+                    setState(() => _type = v ?? ComputerType.desktop),
               ),
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
+                key: ValueKey('college-$_collegeFieldVersion'),
                 initialValue: _collegeId,
                 decoration: const InputDecoration(labelText: 'الكلية *'),
-                items: collegesProvider.colleges
-                    .map((c) => DropdownMenuItem(value: c.id, child: Text(c.name)))
+                items: collegeOptions.entries
+                    .map((c) =>
+                        DropdownMenuItem(value: c.key, child: Text(c.value)))
                     .toList(),
-                onChanged: (v) => setState(() => _collegeId = v),
+                onChanged: (v) {
+                  if (widget.isEditing && v != widget.existing!.collegeId) {
+                    setState(() => _collegeFieldVersion++);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content:
+                          Text('لا يدعم الخادم تغيير كلية الحاسوب بعد إنشائه.'),
+                      backgroundColor: AppColors.error,
+                    ));
+                    return;
+                  }
+                  setState(() => _collegeId = v);
+                },
               ),
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
                 initialValue: _employeeId,
-                decoration: const InputDecoration(labelText: 'الموظف المسؤول (اختياري)'),
-                items: employeesProvider.employees
-                    .map((e) => DropdownMenuItem(value: e.id, child: Text(e.fullName)))
+                decoration: const InputDecoration(
+                    labelText: 'الموظف المسؤول (اختياري)'),
+                items: employeeOptions.entries
+                    .map((e) =>
+                        DropdownMenuItem(value: e.key, child: Text(e.value)))
                     .toList(),
                 onChanged: (v) => setState(() => _employeeId = v),
               ),
@@ -161,12 +236,15 @@ class _ComputerFormScreenState extends State<ComputerFormScreen> {
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
                 initialValue: _diskType,
-                decoration: const InputDecoration(labelText: 'نوع القرص الصلب *'),
-                items: const [
-                  DropdownMenuItem(value: 'SSD', child: Text('SSD')),
-                  DropdownMenuItem(value: 'SATA', child: Text('SATA')),
-                  DropdownMenuItem(value: 'HDD', child: Text('HDD')),
-                ],
+                decoration:
+                    const InputDecoration(labelText: 'نوع القرص الصلب *'),
+                items: diskOptions
+                    .map((value) =>
+                        DropdownMenuItem(value: value, child: Text(value)))
+                    .toList(),
+                validator: (v) => v == 'SATA' || v == 'IDE'
+                    ? null
+                    : 'يرجى اختيار SATA أو IDE',
                 onChanged: (v) => setState(() => _diskType = v),
               ),
               const SizedBox(height: 14),
@@ -178,12 +256,15 @@ class _ComputerFormScreenState extends State<ComputerFormScreen> {
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
                 initialValue: _ram,
-                decoration: const InputDecoration(labelText: 'الذاكرة العشوائية (RAM) *'),
-                items: const [
-                  DropdownMenuItem(value: 'DDR3', child: Text('DDR3')),
-                  DropdownMenuItem(value: 'DDR4', child: Text('DDR4')),
-                  DropdownMenuItem(value: 'DDR5', child: Text('DDR5')),
-                ],
+                decoration: const InputDecoration(
+                    labelText: 'الذاكرة العشوائية (RAM) *'),
+                items: ramOptions
+                    .map((value) =>
+                        DropdownMenuItem(value: value, child: Text(value)))
+                    .toList(),
+                validator: (v) => v == null || v.trim().isEmpty
+                    ? 'يرجى اختيار الذاكرة'
+                    : null,
                 onChanged: (v) => setState(() => _ram = v),
               ),
               const SizedBox(height: 28),

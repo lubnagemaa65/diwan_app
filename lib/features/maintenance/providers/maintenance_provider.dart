@@ -93,15 +93,31 @@ class MaintenanceProvider extends ChangeNotifier {
   /// (تُقبل الصيغتان). [technicianId] هو معرّف المستخدم الفني (User.id).
   Future<bool> updateStatus(String id, String status,
       {String? technicianId}) async {
-    try {
-      await MaintenanceOrderService.updateStatus(id, _parseStatus(status));
-      if (technicianId != null && technicianId.isNotEmpty) {
-        await MaintenanceOrderService.assignTechnician(id, technicianId);
+    final body = <String, dynamic>{
+      'status': ApiMappers.maintenanceStatusToApi(_parseStatus(status)),
+    };
+    if (technicianId != null && technicianId.isNotEmpty) {
+      final parsedId = ApiMappers.toInt(technicianId);
+      if (parsedId == null) {
+        _errorMessage = 'معرّف الفني غير صالح.';
+        notifyListeners();
+        return false;
       }
+      body['technicianId'] = parsedId;
+    }
+
+    try {
+      // يقبل PATCH كلا الحقلين ويحدّثهما معاً في عملية واحدة في الخادم.
+      await ApiClient.guard(() =>
+          ApiClient.instance.dio.patch('/maintenance-orders/$id', data: body));
       await loadOrders();
       return true;
     } on ApiException catch (e) {
       _errorMessage = e.message;
+      notifyListeners();
+      return false;
+    } catch (_) {
+      _errorMessage = 'تعذّر تحديث الطلب، حاول مرة أخرى.';
       notifyListeners();
       return false;
     }

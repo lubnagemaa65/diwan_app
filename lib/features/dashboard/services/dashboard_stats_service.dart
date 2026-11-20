@@ -14,8 +14,8 @@ class DashboardStats {
   final int cancelledCount;
   final int totalOrders;
 
-  /// متوسط زمن الإصلاح للطلبات "المكتملة" فقط (آخر تعديل - تاريخ الإنشاء).
-  /// null إذا لم تتوفر طلبات مكتملة بتواريخ صالحة بعد.
+  /// غير متاح ما دام الخادم لا يسجّل وقت إكمال الطلب.
+  /// لا يصلح وقت آخر تعديل بديلاً لأنه قد يتغير بعد الإكمال.
   final Duration? averageRepairTime;
 
   /// عدد الأجهزة الفريدة (حسب الكود) التي أُصلحت على الأقل مرة.
@@ -70,24 +70,14 @@ class DashboardStatsService {
     final orders = results[2] as List<MaintenanceOrderModel>;
 
     var completed = 0, inProgress = 0, pending = 0, cancelled = 0;
-    final repairDurations = <Duration>[];
-    final repairedDeviceIds = <String>{};
+    final repairedDeviceIds = <(AssetType, String)>{};
 
     for (final o in orders) {
       switch (o.status) {
         case MaintenanceStatus.completed:
           completed++;
-          repairedDeviceIds.add(o.deviceId);
-
-          final dynamicOrder = o as dynamic;
-          final completedAt = dynamicOrder.completedAt ??
-              dynamicOrder.updatedAt ??
-              dynamicOrder.updatedDate ??
-              dynamicOrder.lastUpdatedAt;
-
-          if (o.date != null && completedAt is DateTime) {
-            final dur = completedAt.difference(o.date!);
-            if (!dur.isNegative) repairDurations.add(dur);
+          if (o.deviceId.trim().isNotEmpty) {
+            repairedDeviceIds.add((o.deviceType, o.deviceId));
           }
           break;
         case MaintenanceStatus.inProgress:
@@ -102,21 +92,14 @@ class DashboardStatsService {
       }
     }
 
-    Duration? avg;
-    if (repairDurations.isNotEmpty) {
-      final totalMs =
-          repairDurations.fold<int>(0, (sum, d) => sum + d.inMilliseconds);
-      avg = Duration(milliseconds: totalMs ~/ repairDurations.length);
-    }
-
     // عدد الطلبات المُنشأة بكل يوم من آخر 7 أيام (من اليوم قبل 6 أيام إلى اليوم).
     final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    final today = DateTime.utc(now.year, now.month, now.day);
     final last7 = List<int>.filled(7, 0);
     for (final o in orders) {
-      final d = o.date;
+      final d = o.date?.toLocal();
       if (d == null) continue;
-      final day = DateTime(d.year, d.month, d.day);
+      final day = DateTime.utc(d.year, d.month, d.day);
       final diff = today.difference(day).inDays;
       if (diff >= 0 && diff < 7) last7[6 - diff]++;
     }
@@ -129,7 +112,7 @@ class DashboardStatsService {
       pendingCount: pending,
       cancelledCount: cancelled,
       totalOrders: orders.length,
-      averageRepairTime: avg,
+      averageRepairTime: null,
       devicesRepairedCount: repairedDeviceIds.length,
       last7DaysCounts: last7,
     );
